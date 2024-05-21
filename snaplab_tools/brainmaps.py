@@ -30,7 +30,7 @@ class BrainMapLoader:
                 n_parcels=self.n_parcels,
                 order=self.order,
                 annot=annot,
-                out_dir='~/research_projects/connectome_loader/data/schaefer_parc')
+                out_dir='~/schaefer_parc')
             self.centroids.set_index('ROI Name', inplace=True)
 
 
@@ -105,7 +105,7 @@ class BrainMapLoader:
             self.tau = mean_tau['tau'].values
 
 
-    def load_sa_axis(self, out_dir='~/research_projects/connectome_loader/data/S-A_ArchetypalAxis'):
+    def load_sa_axis(self, out_dir='~/brain_maps/S-A_ArchetypalAxis'):
         self._get_parc_data(parc=self.parc, annot='fsaverage5')
 
         out_dir = os.path.expanduser(out_dir)
