@@ -14,21 +14,24 @@ from tqdm import tqdm
 
 
 class Regression():
-    def __init__(self, X, y, c=None, alg='rr', score='rmse', n_splits=10, runpca=False, n_rand_splits=100):
+    def __init__(self, X, y, c=None, alg='rr', score='rmse', secondary_score='corr', n_splits=10, runpca=False, n_rand_splits=100, verbose=True):
         self.X = X
         self.y = y
         self.c = c
 
         self.alg = alg
         self.score = score
+        self.secondary_score = secondary_score
         self.n_splits = n_splits
         self.runpca = runpca
         self.n_rand_splits = n_rand_splits
+        self.verbose = verbose
 
     def _print_settings(self):
         print('\tsettings:')
         print('\t\talg: {0}'.format(self.alg))
         print('\t\tscore: {0}'.format(self.score))
+        print('\t\tsecondary score: {0}'.format(self.secondary_score))
         print('\t\tn_splits: {0}'.format(self.n_splits))
         print('\t\trunpca: {0}'.format(self.runpca))
         print('\t\tn_rand_splits: {0}'.format(self.n_rand_splits))
@@ -57,39 +60,68 @@ class Regression():
             self.scorer = make_scorer(mean_absolute_error, greater_is_better=False)
         elif self.score == 'exp_var':
             self.scorer = make_scorer(explained_variance_score, greater_is_better=True)
+            
+        if self.secondary_score == 'r2':
+            self.secondary_scorer = make_scorer(r2_score, greater_is_better=True)
+        elif self.secondary_score == 'corr':
+            self.secondary_scorer = make_scorer(corr_true_pred, greater_is_better=True)
+        elif self.secondary_score == 'mse':
+            self.secondary_scorer = make_scorer(mean_squared_error, greater_is_better=False)
+        elif self.secondary_score == 'rmse':
+            self.secondary_scorer = make_scorer(root_mean_squared_error, greater_is_better=False)
+        elif self.secondary_score == 'mae':
+            self.secondary_scorer = make_scorer(mean_absolute_error, greater_is_better=False)
+        elif self.secondary_score == 'exp_var':
+            self.secondary_scorer = make_scorer(explained_variance_score, greater_is_better=True)
+        elif self.secondary_score is None:
+            self.secondary_scorer = None
 
     def run(self):
-        print('Pipeline: regression (out-of-sample regression)')
-        self._print_settings()
+        if self.verbose:
+            print('Pipeline: regression (out-of-sample regression)')
+            self._print_settings()
         self._get_reg()
         self._get_scorer()
 
+        y_pred = np.zeros((len(self.y), self.n_rand_splits))
         accuracy_mean = np.zeros(self.n_rand_splits)
         accuracy_std = np.zeros(self.n_rand_splits)
-        y_pred = np.zeros((len(self.y), self.n_rand_splits))
+        if self.secondary_scorer is not None:
+            secondary_accuracy_mean = np.zeros(self.n_rand_splits)
+            secondary_accuracy_std = np.zeros(self.n_rand_splits)            
 
         for i in tqdm(np.arange(self.n_rand_splits)):
-            accuracy, y_pred[:, i] = run_reg(X=self.X, y=self.y, c=self.c, reg=self.reg,
-                                             scorer=self.scorer, n_splits=self.n_splits, runpca=self.runpca,
-                                             seed=i)
-            accuracy_mean[i] = accuracy.mean()
-            accuracy_std[i] = accuracy.std()
-
+            outputs = run_reg(X=self.X, y=self.y, c=self.c, reg=self.reg,
+                              scorer=self.scorer, secondary_scorer=self.secondary_scorer,
+                              n_splits=self.n_splits, runpca=self.runpca,
+                              seed=i)
+            y_pred[:, i] = outputs['y_pred_out']
+            accuracy_mean[i] = outputs['accuracy'].mean()
+            accuracy_std[i] = outputs['accuracy'].std()
+            if self.secondary_scorer is not None:
+                secondary_accuracy_mean[i] = outputs['secondary_accuracy'].mean()
+                secondary_accuracy_std[i] = outputs['secondary_accuracy'].std()
+        
         print('Average prediction accuracy: {:.2f}+/-{:.2f} '.format(accuracy_mean.mean(), accuracy_std.mean()))
+        self.y_pred = y_pred
         self.accuracy_mean = accuracy_mean
         self.accuracy_std = accuracy_std
-        self.y_pred = y_pred
+        if self.secondary_scorer is not None:
+            print('\tAverage prediction accuracy (secondary): {:.2f}+/-{:.2f} '.format(secondary_accuracy_mean.mean(), secondary_accuracy_std.mean()))
+            self.secondary_accuracy_mean = secondary_accuracy_mean
+            self.secondary_accuracy_std = secondary_accuracy_std
 
     def run_perm(self, n_perm=int(5e3)):
         print('Pipeline: prediction, permutation test')
-
         self._get_reg()
         self._get_scorer()
 
-        accuracy_perm = run_perm(X=self.X, y=self.y, c=self.c, reg=self.reg,
-                                scorer=self.scorer, n_splits=self.n_splits, runpca=self.runpca, n_perm=n_perm)
+        outputs = run_perm(X=self.X, y=self.y, c=self.c, reg=self.reg,
+                           scorer=self.scorer, secondary_scorer=self.secondary_scorer,
+                           n_splits=self.n_splits, runpca=self.runpca, n_perm=n_perm)
 
-        self.accuracy_perm = accuracy_perm
+        self.accuracy_perm = outputs['accuracy_perm']
+        self.secondary_accuracy_perm = outputs['secondary_accuracy_perm']
 
 
 def corr_true_pred(y_true, y_pred):
@@ -141,9 +173,11 @@ def get_cv(y, n_splits=10):
     return my_cv
 
 
-def my_cross_val_score(X, y, c, my_cv, reg, scorer, runpca=False):
-    accuracy = np.zeros(len(my_cv), )
+def my_cross_val_score(X, y, c, my_cv, reg, scorer, runpca=False, secondary_scorer=None):
     y_pred_out = np.zeros(y.shape)
+    accuracy = np.zeros(len(my_cv), )
+    secondary_accuracy = np.zeros(len(my_cv), )
+    secondary_accuracy[:] = np.nan
 
     # find number of PCs
     if type(runpca) == str:
@@ -216,27 +250,34 @@ def my_cross_val_score(X, y, c, my_cv, reg, scorer, runpca=False):
             X_test = pca.transform(X_test)
 
         reg.fit(X_train, y_train)
-        accuracy[k] = scorer(reg, X_test, y_test)
         y_pred_out[te] = reg.predict(X_test)
+        accuracy[k] = scorer(reg, X_test, y_test)
+        if secondary_scorer is not None:
+            secondary_accuracy[k] = secondary_scorer(reg, X_test, y_test)
 
-    return accuracy, y_pred_out
+    outputs = dict()
+    outputs['y_pred_out'] = y_pred_out
+    outputs['accuracy'] = accuracy
+    outputs['secondary_accuracy'] = secondary_accuracy
+
+    return outputs
 
 
-def run_reg(X, y, c, reg, scorer, n_splits=10, runpca=False, seed=0):
+def run_reg(X, y, c, reg, scorer, secondary_scorer=None, n_splits=10, runpca=False, seed=0):
     X_shuf, y_shuf, c_shuf = shuffle_data(X=X, y=y, c=c, seed=seed)
-
     my_cv = get_cv(y_shuf, n_splits=n_splits)
 
-    accuracy, y_pred_out = my_cross_val_score(X=X_shuf, y=y_shuf, c=c_shuf, my_cv=my_cv, reg=reg,
-                                              scorer=scorer, runpca=runpca)
+    outputs = my_cross_val_score(X=X_shuf, y=y_shuf, c=c_shuf, my_cv=my_cv, reg=reg,
+                                 scorer=scorer, runpca=runpca, secondary_scorer=secondary_scorer)
+    
+    return outputs
 
-    return accuracy, y_pred_out
 
-
-def run_perm(X, y, c, reg, scorer, n_splits=10, runpca=False, n_perm=int(5e3)):
+def run_perm(X, y, c, reg, scorer, secondary_scorer=None, n_splits=10, runpca=False, n_perm=int(5e3)):
     my_cv = get_cv(y, n_splits=n_splits)
-
-    permuted_acc = np.zeros(n_perm)
+    accuracy_perm = np.zeros(n_perm)
+    secondary_accuracy_perm = np.zeros(n_perm)
+    secondary_accuracy_perm[:] = np.nan
 
     for i in tqdm(np.arange(n_perm)):
         np.random.seed(i)
@@ -245,8 +286,13 @@ def run_perm(X, y, c, reg, scorer, n_splits=10, runpca=False, n_perm=int(5e3)):
 
         y_perm = y[idx].copy()
 
-        temp_acc, y_pred_out_tmp = my_cross_val_score(X=X, y=y_perm, c=c, my_cv=my_cv, reg=reg,
-                                                      scorer=scorer, runpca=runpca)
-        permuted_acc[i] = temp_acc.mean()
+        outputs = my_cross_val_score(X=X, y=y_perm, c=c, my_cv=my_cv, reg=reg,
+                                     scorer=scorer, runpca=runpca, secondary_scorer=secondary_scorer)
+        accuracy_perm[i] = outputs['accuracy'].mean()
+        secondary_accuracy_perm[i] = outputs['secondary_accuracy'].mean()
 
-    return permuted_acc
+    outputs = dict()
+    outputs['accuracy_perm'] = accuracy_perm
+    outputs['secondary_accuracy_perm'] = secondary_accuracy_perm
+
+    return outputs
