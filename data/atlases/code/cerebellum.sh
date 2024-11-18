@@ -4,7 +4,7 @@
 # King, M., Hernandez-Castillo, C.R., Poldrack, R.R., Ivry, R., and Diedrichsen, J. (2019).
 # Functional Boundaries in the Human Cerebellum revealed by a Multi-Domain Task Battery. Nat. Neurosci.
 
-DOWNLOAD_DIR=/home/lindenmp/atlases/MDTB10
+DOWNLOAD_DIR=${HOME}/research_projects/snaplab_tools/data/atlases/MDTB10
 rm -rf ${DOWNLOAD_DIR}
 mkdir -p ${DOWNLOAD_DIR}
 cd ${DOWNLOAD_DIR}
@@ -24,7 +24,7 @@ wget https://github.com/DiedrichsenLab/cerebellar_atlases/raw/master/King_2019/a
 # This is in a strange volume, but in coordinate space it's
 # "..._space-MNI.nii: volume file aligned to FNIRT MNI space", which is NLin6Asym.
 
-TEMPLATEFLOW_HOME=/home/lindenmp/templateflow
+TEMPLATEFLOW_HOME=${HOME}/templateflow
 # Resample it into the official TemplateFlow volume
 for RES in 1 2; do
     # To NLin6Asym (no transform)
