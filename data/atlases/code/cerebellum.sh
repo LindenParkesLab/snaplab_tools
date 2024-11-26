@@ -31,7 +31,7 @@ for RES in 1 2; do
     antsApplyTransforms \
         -d 3 \
         -i atl-MDTB10_space-MNI_dseg.nii \
-        -o atlas-MDTB10_space-MNI152NLin6Asym_res-0${RES}_dseg.nii.gz \
+        -o atlas-MDTB10_space-MNI152NLin6Asym_res-${RES}_dseg.nii.gz \
         -r ${TEMPLATEFLOW_HOME}/tpl-MNI152NLin6Asym/tpl-MNI152NLin6Asym_res-0${RES}_desc-brain_mask.nii.gz \
         --interpolation GenericLabel \
         -v 1
@@ -40,7 +40,7 @@ for RES in 1 2; do
     antsApplyTransforms \
         -d 3 \
         -i atl-MDTB10_space-MNI_dseg.nii \
-        -o atlas-MDTB10_space-MNI152NLin2009cAsym_res-0${RES}_dseg.nii.gz \
+        -o atlas-MDTB10_space-MNI152NLin2009cAsym_res-${RES}_dseg.nii.gz \
         -t ${TEMPLATEFLOW_HOME}/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_from-MNI152NLin6Asym_mode-image_xfm.h5 \
         -r ${TEMPLATEFLOW_HOME}/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-0${RES}_desc-brain_mask.nii.gz \
         --interpolation GenericLabel \
