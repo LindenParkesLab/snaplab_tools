@@ -21,13 +21,44 @@ def set_plotting_params(format='png'):
     sns.set(style='whitegrid', context='paper', font_scale=1)
 
 
+def get_my_colors(normalize=True, as_list=False, cat_trio=False):
+    # color palette (RGB / HEX):
+    # raspberry blush: rgba(234,86,81,255) / #ea5651
+    # conch shell: rgba(238,186,169,255) / #eebaa9
+    # cinnamon: rgba(165,74,54,255) / #a54a36
+    # wenge: rgba(63,44,41,255) / #3f2c29
+    # savannah green: rgba(194,158,62,255) / #c29e3e
+    # new age: rgba(217,206,209,255) / #d9ced1
+    # starry night blue: rgba(48,65,121,255) / #304179
+    # north sea green: rgba(0,111,116,255) / #006f74
+    my_colors = dict()
+    my_colors['raspberry_blush'] = [234, 86, 81]
+    my_colors['starry_night_blue'] = [48, 65, 121]
+    my_colors['north_sea_green'] = [0, 111, 116]
+    if not cat_trio:
+        my_colors['conch_shell'] = [238, 186, 169]
+        my_colors['cinnamon'] = [165, 74, 54]
+        my_colors['wenge'] = [63, 44, 41]
+        my_colors['savannah_green'] = [194, 158, 62]
+        my_colors['new_age'] = [217, 206, 209]
+
+    if normalize:
+        for key in my_colors.keys():
+            my_colors[key] = [color / 255 for color in my_colors[key]]
+
+    if as_list:
+        my_colors = list(my_colors.values())
+
+    return my_colors
+
+
 def get_p_val_string(p_val):
-    if p_val == 0.0:
-        p_str = "-log10($\mathit{:}$)>25".format('{p}')
-    elif p_val < 0.05:
-        p_str = '$\mathit{:}$ = {:0.0e}'.format('{p}', p_val)
+    # if np.round(p_val, 3) == 0.000:
+        # p_str = "-log10($\mathit{:}$)>25".format('{p}')
+    if p_val < 0.05:
+        p_str = '$\mathit{:}$={:0.0e}'.format('{p}', p_val)
     else:
-        p_str = "$\mathit{:}$ = {:.3f}".format('{p}', p_val)
+        p_str = "$\mathit{:}$={:.3f}".format('{p}', p_val)
 
     return p_str
 
