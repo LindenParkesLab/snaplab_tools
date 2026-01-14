@@ -167,22 +167,6 @@ def schaefer_ordering_mapper(out_dir='~/schaefer_ordering_mapper',
     return mapped
 
 
-def get_null_p(observed, null, version='standard', abs=False):
-    if abs:
-        observed = np.abs(observed)
-        null = np.abs(null)
-
-    if version == 'standard':
-        p_val = np.sum(null >= observed) / len(null)
-    elif version == 'reverse':
-        p_val = np.sum(observed >= null) / len(null)
-    elif version == 'smallest':
-        p_val = np.min([np.sum(null >= observed) / len(null),
-                        np.sum(observed >= null) / len(null)])
-
-    return p_val
-
-
 def get_fdr_p(p_vals, alpha=0.05):
     if p_vals.ndim == 2:
         do_reshape = True
