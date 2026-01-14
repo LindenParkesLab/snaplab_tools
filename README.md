@@ -18,12 +18,13 @@ To use these functions, you will need the following packages installed in your p
 8. tqdm
 9. wget
 10. bctpy
-11. GitPython
+11. brainsmash
+12. GitPython
 
 You can install them all at once like so:
 
 ```
-pip install numpy scipy scikit-learn statsmodels pandas nibabel nilearn tqdm wget bctpy GitPython
+pip install numpy scipy scikit-learn statsmodels pandas nibabel nilearn tqdm wget bctpy brainsmash GitPython
 ```
 
 If you find missing dependencies, let me know! or edit this readme and submit a pull request.
