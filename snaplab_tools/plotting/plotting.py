@@ -30,7 +30,7 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
                     auto_polynomial=False, models_to_test=[1, 2, 3], 
                     model_selection_metric='variance_explained',
                     data_group=None, data_group_cmap='tab10',
-                    cbar_label='Data Values'):
+                    cbar_label='Data Values', show_colorbar=True):
     """
     Enhanced correlation plot with automatic polynomial model selection and data group coloring.
     
@@ -62,7 +62,7 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
         Whether to display correlation statistics on plot
     stats_position : str, default 'upper left'
         Position of statistics text box
-    font_size : int, default 8
+    font_size : int, default 6
         Base font size for labels and text
     grid : bool, default True
         Whether to show grid
@@ -204,47 +204,48 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
                           label=f'{group}')
         
         # Add colorbar for data groups
-        if n_groups > 1:  # Only add colorbar if more than one group
-            # For string labels, we need to create a discrete colorbar
-            if isinstance(unique_groups[0], (str, np.str_)):
-                # Create discrete colorbar for string labels
-                # Import required matplotlib components for colorbar handling
-                
-                # Create a listed colormap from the colors we're using
-                listed_cmap = ListedColormap(colors[:n_groups])
-                bounds = np.arange(n_groups + 1) - 0.5
-                norm = BoundaryNorm(bounds, listed_cmap.N)
-                
-                sm = plt.cm.ScalarMappable(cmap=listed_cmap, norm=norm)
-                sm.set_array([])
-                cbar = plt.colorbar(sm, ax=ax, shrink=0.8, aspect=20, pad=0.05)
-                cbar.set_label(cbar_label, fontsize=font_size)
+        if show_colorbar:
+            if n_groups > 1:  # Only add colorbar if more than one group
+                # For string labels, we need to create a discrete colorbar
+                if isinstance(unique_groups[0], (str, np.str_)):
+                    # Create discrete colorbar for string labels
+                    # Import required matplotlib components for colorbar handling
+                    
+                    # Create a listed colormap from the colors we're using
+                    listed_cmap = ListedColormap(colors[:n_groups])
+                    bounds = np.arange(n_groups + 1) - 0.5
+                    norm = BoundaryNorm(bounds, listed_cmap.N)
+                    
+                    sm = plt.cm.ScalarMappable(cmap=listed_cmap, norm=norm)
+                    sm.set_array([])
+                    cbar = plt.colorbar(sm, ax=ax, shrink=0.8, aspect=20, pad=0.05)
+                    cbar.set_label(cbar_label, fontsize=font_size)
 
-                # Set colorbar ticks to show string labels
-                cbar.set_ticks(np.arange(n_groups))
-                if n_groups <= 10:
-                    cbar.set_ticklabels(unique_groups, fontsize=font_size-2)
+                    # Set colorbar ticks to show string labels
+                    cbar.set_ticks(np.arange(n_groups))
+                    if n_groups <= 10:
+                        cbar.set_ticklabels(unique_groups, fontsize=font_size-2)
+                    else:
+                        # For many groups, show fewer labels
+                        tick_indices = np.linspace(0, n_groups-1, min(5, n_groups), dtype=int)
+                        cbar.set_ticks(tick_indices)
+                        cbar.set_ticklabels([unique_groups[i] for i in tick_indices], fontsize=font_size-2)
                 else:
-                    # For many groups, show fewer labels
-                    tick_indices = np.linspace(0, n_groups-1, min(5, n_groups), dtype=int)
-                    cbar.set_ticks(tick_indices)
-                    cbar.set_ticklabels([unique_groups[i] for i in tick_indices], fontsize=font_size-2)
-            else:
-                # Original numeric colorbar
-                sm = plt.cm.ScalarMappable(cmap=cmap, 
-                                          norm=plt.Normalize(vmin=min(unique_groups), 
-                                                           vmax=max(unique_groups)))
-                sm.set_array([])
-                cbar = plt.colorbar(sm, ax=ax, shrink=0.8, aspect=20, pad=0.05)
-                cbar.set_label(cbar_label, fontsize=font_size)
-                
-                # Set colorbar ticks to show group numbers
-                if n_groups <= 10:
-                    cbar.set_ticks(unique_groups)
-                else:
-                    # For many groups, show fewer ticks
-                    tick_groups = unique_groups[::max(1, len(unique_groups)//5)]
-                    cbar.set_ticks(tick_groups)
+                    # Original numeric colorbar
+                    sm = plt.cm.ScalarMappable(cmap=cmap, 
+                                            norm=plt.Normalize(vmin=min(unique_groups), 
+                                                            vmax=max(unique_groups)))
+                    sm.set_array([])
+                    cbar = plt.colorbar(sm, ax=ax, shrink=0.8, aspect=20, pad=0.05)
+                    cbar.set_label(cbar_label, fontsize=font_size)
+                    
+                    # Set colorbar ticks to show group numbers
+                    if n_groups <= 10:
+                        cbar.set_ticks(unique_groups)
+                    else:
+                        # For many groups, show fewer ticks
+                        tick_groups = unique_groups[::max(1, len(unique_groups)//5)]
+                        cbar.set_ticks(tick_groups)
     
     else:
         # Original coloring logic when data_group is None
@@ -525,6 +526,235 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
         return ax, stats_dict
     else:
         return ax
+
+
+def plot_correlation_unity(x, y, ax, x_label=None, y_label=None, title=None,
+                           show_marginals=True, show_unity_line=True, show_zero_lines=True,
+                           color='#888888', alpha=0.5, s=5,
+                           marginal_color_x='blue', marginal_color_y='red', marginal_alpha=0.25, fontsize=7):
+    """
+    Plot comparison between two sets of measurements with optional marginals and statistics.
+    
+    Parameters:
+    -----------
+    x : array-like or pd.Series
+        First set of measurements (e.g., rest correlations)
+    y : array-like or pd.Series
+        Second set of measurements (e.g., task correlations)
+    ax : matplotlib.axes.Axes
+        Axes object to plot on
+    x_label : str, optional
+        Label for x-axis. If None, uses Series name if x is a Series, otherwise 'X'
+    y_label : str, optional
+        Label for y-axis. If None, uses Series name if y is a Series, otherwise 'Y'
+    title : str, optional
+        Plot title. If None, no title is displayed
+    show_marginals : bool
+        Whether to show marginal distributions
+    show_unity_line : bool
+        Whether to show unity (y=x) line
+    show_zero_lines : bool
+        Whether to show x=0 and y=0 reference lines
+    color : str or color
+        Color for scatter points (default: soft gray '#888888')
+    alpha : float
+        Transparency for scatter points
+    s : float
+        Size of scatter points (default: 10)
+    marginal_color_x : str or color
+        Color for x marginal distribution
+    marginal_color_y : str or color
+        Color for y marginal distribution
+    marginal_alpha : float
+        Transparency for marginal distributions
+    fontsize : float
+        Font size for all text elements (labels, title, tick labels) (default: 7)
+        
+    Returns:
+    --------
+    stats_dict : dict
+        Dictionary containing computed statistics:
+        - n_valid: number of valid pairs
+        - n_invalid: number of excluded pairs
+        - x_mean, x_std: statistics for x
+        - y_mean, y_std: statistics for y
+        - compression_ratio: std_y / std_x
+        - correlation: Pearson r between x and y
+        - correlation_p: p-value for correlation
+        - variance_diff_p: p-value for Levene's test of equal variances
+    """
+    # Handle pandas Series input and extract labels
+    x_series_name = None
+    y_series_name = None
+    
+    if isinstance(x, pd.Series):
+        x_series_name = x.name
+        x = x.values
+    if isinstance(y, pd.Series):
+        y_series_name = y.name
+        y = y.values
+    
+    # Set default labels from pandas Series names if not provided
+    if x_label is None and x_series_name is not None:
+        x_label = str(x_series_name)
+    elif x_label is None:
+        x_label = 'X'
+        
+    if y_label is None and y_series_name is not None:
+        y_label = str(y_series_name)
+    elif y_label is None:
+        y_label = 'Y'
+    
+    # Convert to numpy arrays and handle missing data
+    x = np.array(x, dtype=float)
+    y = np.array(y, dtype=float)
+    
+    # Flatten if needed
+    x = x.flatten()
+    y = y.flatten()
+    
+    # Check dimensions match
+    if len(x) != len(y):
+        raise ValueError(f"x and y must have same length. Got x={len(x)}, y={len(y)}")
+    
+    # Handle NaNs - only keep pairs where both values are valid
+    valid_mask = ~(np.isnan(x) | np.isnan(y))
+    n_valid = valid_mask.sum()
+    n_invalid = len(x) - n_valid
+    
+    if n_valid == 0:
+        ax.text(0.5, 0.5, 'No valid data', 
+               ha='center', va='center', transform=ax.transAxes, fontsize=fontsize)
+        return {
+            'n_valid': 0,
+            'n_invalid': n_invalid,
+            'x_mean': np.nan,
+            'x_std': np.nan,
+            'y_mean': np.nan,
+            'y_std': np.nan,
+            'compression_ratio': np.nan,
+            'correlation': np.nan,
+            'correlation_p': np.nan,
+            'variance_diff_p': np.nan
+        }
+    
+    x_clean = x[valid_mask]
+    y_clean = y[valid_mask]
+    
+    # Compute statistics
+    x_mean = x_clean.mean()
+    x_std = x_clean.std()
+    y_mean = y_clean.mean()
+    y_std = y_clean.std()
+    compression_ratio = y_std / x_std if x_std > 0 else np.nan
+    
+    # Correlation
+    if n_valid > 2:
+        r, p = sp.stats.pearsonr(x_clean, y_clean)
+    else:
+        r, p = np.nan, np.nan
+    
+    # Variance difference test
+    if n_valid > 2:
+        _, var_p = sp.stats.levene(x_clean, y_clean)
+    else:
+        var_p = np.nan
+    
+    # Get axis limits
+    all_vals = np.concatenate([x_clean, y_clean])
+    lim_min = all_vals.min() * 1.1 if all_vals.min() < 0 else all_vals.min() * 0.9
+    lim_max = all_vals.max() * 1.1 if all_vals.max() > 0 else all_vals.max() * 0.9
+    
+    # Plot unity line
+    if show_unity_line:
+        ax.plot([lim_min, lim_max], [lim_min, lim_max], 
+                'k--', alpha=0.3, linewidth=1, zorder=1)
+    
+    # Plot zero lines
+    if show_zero_lines:
+        ax.axhline(0, color='gray', linestyle=':', alpha=0.3, linewidth=1, zorder=1)
+        ax.axvline(0, color='gray', linestyle=':', alpha=0.3, linewidth=1, zorder=1)
+    
+    # Add marginal distributions using KDE (plot these first, with lower zorder)
+    if show_marginals and n_valid > 5:
+        kde_height = (lim_max - lim_min) * 0.10
+        
+        # X marginal (top)
+        try:
+            kde_x = sp.stats.gaussian_kde(x_clean)
+            x_range = np.linspace(lim_min, lim_max, 200)
+            x_density = kde_x(x_range)
+            x_density_scaled = x_density / x_density.max() * kde_height
+            
+            ax.fill_between(x_range, 
+                           lim_max - x_density_scaled,
+                           lim_max,
+                           color=marginal_color_x, 
+                           alpha=marginal_alpha,
+                           edgecolor=marginal_color_x, 
+                           linewidth=1,
+                           zorder=2)
+        except np.linalg.LinAlgError:
+            # Fall back to histogram if KDE fails (e.g., all values identical)
+            pass
+        
+        # Y marginal (right)
+        try:
+            kde_y = sp.stats.gaussian_kde(y_clean)
+            y_range = np.linspace(lim_min, lim_max, 200)
+            y_density = kde_y(y_range)
+            y_density_scaled = y_density / y_density.max() * kde_height
+            
+            ax.fill_betweenx(y_range,
+                            lim_max - y_density_scaled,
+                            lim_max,
+                            color=marginal_color_y,
+                            alpha=marginal_alpha,
+                            edgecolor=marginal_color_y,
+                            linewidth=1,
+                            zorder=2)
+        except np.linalg.LinAlgError:
+            # Fall back to histogram if KDE fails
+            pass
+    
+    # Scatter plot (plot last with higher zorder so it's on top)
+    ax.scatter(x_clean, y_clean, 
+              s=s, alpha=alpha, 
+              edgecolors='black', linewidths=0.5,
+              c=color, zorder=3)
+    
+    # Set labels
+    ax.set_xlabel(x_label, fontsize=fontsize)
+    ax.set_ylabel(y_label, fontsize=fontsize)
+    
+    # Set title if provided
+    if title is not None:
+        ax.set_title(title, fontsize=fontsize)
+    
+    # Set tick label sizes
+    ax.tick_params(axis='both', which='major', labelsize=fontsize)
+    
+    # Set axis properties
+    ax.set_xlim(lim_min, lim_max)
+    ax.set_ylim(lim_min, lim_max)
+    ax.set_aspect('equal')
+    ax.grid(True, alpha=0.2, linestyle='-', linewidth=0.5)
+    
+    # Compile statistics
+    stats_dict = {
+        'n_valid': n_valid,
+        'n_invalid': n_invalid,
+        'x_mean': x_mean,
+        'x_std': x_std,
+        'y_mean': y_mean,
+        'y_std': y_std,
+        'compression_ratio': compression_ratio,
+        'correlation': r,
+        'correlation_p': p,
+        'variance_diff_p': var_p
+    }
+    
+    return stats_dict
 
 
 def null_plot(observed, null, xlabel, ax, p_val=None, add_text=True, line_color=None, use_kde=False):
