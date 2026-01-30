@@ -531,7 +531,8 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
 def plot_correlation_unity(x, y, ax, x_label=None, y_label=None, title=None,
                            show_marginals=True, show_unity_line=True, show_zero_lines=True,
                            color='#888888', alpha=0.5, s=5,
-                           marginal_color_x='blue', marginal_color_y='red', marginal_alpha=0.25, fontsize=7):
+                           marginal_color_x='blue', marginal_color_y='red', marginal_alpha=0.25, fontsize=7,
+                           show_correlation=False, correlation_type='pearson'):
     """
     Plot comparison between two sets of measurements with optional marginals and statistics.
     
@@ -560,7 +561,7 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None, title=None,
     alpha : float
         Transparency for scatter points
     s : float
-        Size of scatter points (default: 10)
+        Size of scatter points (default: 5)
     marginal_color_x : str or color
         Color for x marginal distribution
     marginal_color_y : str or color
@@ -569,6 +570,10 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None, title=None,
         Transparency for marginal distributions
     fontsize : float
         Font size for all text elements (labels, title, tick labels) (default: 7)
+    show_correlation : bool
+        Whether to show correlation annotation (default: False)
+    correlation_type : str
+        Type of correlation to compute: 'pearson' or 'spearman' (default: 'pearson')
         
     Returns:
     --------
@@ -650,9 +655,17 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None, title=None,
     
     # Correlation
     if n_valid > 2:
-        r, p = sp.stats.pearsonr(x_clean, y_clean)
+        r_pearson, p_pearson = sp.stats.pearsonr(x_clean, y_clean)
+        r_spearman, p_spearman = sp.stats.spearmanr(x_clean, y_clean)
     else:
-        r, p = np.nan, np.nan
+        r_pearson, p_pearson = np.nan, np.nan
+        r_spearman, p_spearman = np.nan, np.nan
+    
+    # Select which correlation to use
+    if correlation_type.lower() == 'spearman':
+        r, p = r_spearman, p_spearman
+    else:
+        r, p = r_pearson, p_pearson
     
     # Variance difference test
     if n_valid > 2:
@@ -723,6 +736,57 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None, title=None,
               edgecolors='black', linewidths=0.5,
               c=color, zorder=3)
     
+    # Add correlation annotation if requested
+    if show_correlation and not np.isnan(r):
+        # Find best position to minimize overlap with points
+        # Test 4 corners: lower-left, lower-right, upper-left, upper-right
+        x_mid = (lim_min + lim_max) / 2
+        y_mid = (lim_min + lim_max) / 2
+        
+        # Count points in each quadrant
+        quadrant_counts = {
+            'lower_left': np.sum((x_clean < x_mid) & (y_clean < y_mid)),
+            'lower_right': np.sum((x_clean >= x_mid) & (y_clean < y_mid)),
+            'upper_left': np.sum((x_clean < x_mid) & (y_clean >= y_mid)),
+            'upper_right': np.sum((x_clean >= x_mid) & (y_clean >= y_mid))
+        }
+        
+        # Choose quadrant with fewest points
+        best_quadrant = min(quadrant_counts, key=quadrant_counts.get)
+        
+        # Map quadrant to position coordinates
+        position_map = {
+            'lower_left': (0.05, 0.05, 'left', 'bottom'),
+            'lower_right': (0.95, 0.05, 'right', 'bottom'),
+            'upper_left': (0.05, 0.95, 'left', 'top'),
+            'upper_right': (0.95, 0.95, 'right', 'top')
+        }
+        
+        x_pos, y_pos, ha, va = position_map[best_quadrant]
+        
+        # Format p-value
+        if p < 0.001:
+            p_str = 'p < 0.001'
+        elif p < 0.01:
+            p_str = f'p = {p:.3f}'
+        else:
+            p_str = f'p = {p:.2f}'
+        
+        # Create annotation text
+        corr_label = 'ρ' if correlation_type.lower() == 'spearman' else 'r'
+        annotation_text = f'{corr_label} = {r:.2f}\n{p_str}'
+        
+        # Add text annotation
+        ax.text(x_pos, y_pos, annotation_text,
+               transform=ax.transAxes,
+               fontsize=fontsize-2,
+               ha=ha, va=va,
+               bbox=dict(boxstyle='round,pad=0.3', 
+                        facecolor='white', 
+                        edgecolor='gray',
+                        alpha=0.8,
+                        linewidth=0.5))
+    
     # Set labels
     ax.set_xlabel(x_label, fontsize=fontsize)
     ax.set_ylabel(y_label, fontsize=fontsize)
@@ -751,6 +815,10 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None, title=None,
         'compression_ratio': compression_ratio,
         'correlation': r,
         'correlation_p': p,
+        'correlation_pearson': r_pearson,
+        'correlation_pearson_p': p_pearson,
+        'correlation_spearman': r_spearman,
+        'correlation_spearman_p': p_spearman,
         'variance_diff_p': var_p
     }
     
