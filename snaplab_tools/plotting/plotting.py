@@ -6,6 +6,7 @@ import pandas as pd
 
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
 from matplotlib.colors import Normalize,  BoundaryNorm, ListedColormap
 from matplotlib.cm import ScalarMappable
 plt.ion()
@@ -31,7 +32,7 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
                     model_selection_metric='variance_explained',
                     data_group=None, data_group_cmap='tab10',
                     cbar_label='Data Values', show_colorbar=True,
-                    custom_pvalue=None, custom_null=None):
+                    custom_inset=None):
     """
     Enhanced correlation plot with automatic polynomial model selection and data group coloring.
     
@@ -88,14 +89,18 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
         Colormap to use for data group coloring. Good options: 'tab10', 'tab20', 'Set3', 'viridis'
     cbar_label : str, default 'Data Values'
         Label for the colorbar
-    custom_pvalue : float, optional
-        Custom p-value to display instead of the computed correlation p-value.
-        If provided, this will be shown in the annotation box but will NOT affect
-        the returned statistics. Not compatible with auto_polynomial=True.
-    custom_null : array-like, optional
-        Array of null distribution values (e.g., from spatial permutation testing).
-        If provided, an inset KDE plot will be added showing the empirical null
-        distribution with the observed correlation marked.
+    custom_inset : dict, optional
+        Dictionary containing custom inset parameters. Supported keys:
+        - 'custom_pvalue' (float): Custom p-value to display instead of the computed 
+          correlation p-value. If provided, this will be shown in the annotation box 
+          but will NOT affect the returned statistics. Not compatible with auto_polynomial=True.
+        - 'custom_null' (array-like): Array of null distribution values (e.g., from 
+          spatial permutation testing). If provided, an inset KDE plot will be added 
+          showing the empirical null distribution with the observed correlation marked.
+          If 'custom_null' is provided WITHOUT 'custom_pvalue', the p-value will be 
+          computed automatically using a one-tailed test: for positive correlations, 
+          p = proportion of null >= observed; for negative correlations, p = proportion 
+          of null <= observed.
 
     Returns:
     --------
@@ -104,12 +109,7 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
     stats_dict : dict, optional
         Dictionary with correlation statistics (if return_stats=True)
     """
-    
-    # Check for incompatible parameters
-    if custom_pvalue is not None and auto_polynomial:
-        raise ValueError("custom_pvalue is not compatible with auto_polynomial=True. "
-                        "Please set auto_polynomial=False or remove custom_pvalue.")
-    
+
     # Handle pandas Series input and extract labels
     x_series_name = None
     y_series_name = None
@@ -157,7 +157,34 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
         method_name = "Spearman"
     else:
         raise ValueError("Method must be 'pearson' or 'spearman'")
-    
+
+    # Extract custom_inset parameters
+    custom_pvalue = None
+    custom_null = None
+    if custom_inset is not None:
+        if not isinstance(custom_inset, dict):
+            raise ValueError("custom_inset must be a dictionary")
+        custom_null = custom_inset.get('custom_null', None)
+        custom_null = np.array(custom_null)
+        custom_null = custom_null[~np.isnan(custom_null)]
+
+        # Compute p-value from null distribution if provided and custom_pvalue not specified
+        custom_pvalue = custom_inset.get('custom_pvalue', None)
+        if custom_pvalue is None:
+            if len(custom_null) > 0:
+                # One-tailed test based on sign of observed correlation
+                if corr_coef >= 0:
+                    # For positive correlations: proportion of null >= observed
+                    custom_pvalue = np.mean(custom_null >= corr_coef)
+                else:
+                    # For negative correlations: proportion of null <= observed
+                    custom_pvalue = np.mean(custom_null <= corr_coef)
+
+    # Check for incompatible parameters
+    if custom_pvalue is not None and auto_polynomial:
+        raise ValueError("custom_inset['custom_pvalue'] is not compatible with auto_polynomial=True. "
+                        "Please set auto_polynomial=False or remove custom_pvalue from custom_inset.")
+
     # Determine line color early for use in both regression line and inset
     line_color = color if data_group is None else '#3B3B3B'
     
@@ -225,9 +252,6 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
             if n_groups > 1:  # Only add colorbar if more than one group
                 # For string labels, we need to create a discrete colorbar
                 if isinstance(unique_groups[0], (str, np.str_)):
-                    # Create discrete colorbar for string labels
-                    # Import required matplotlib components for colorbar handling
-                    
                     # Create a listed colormap from the colors we're using
                     listed_cmap = ListedColormap(colors[:n_groups])
                     bounds = np.arange(n_groups + 1) - 0.5
@@ -263,7 +287,6 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
                         # For many groups, show fewer ticks
                         tick_groups = unique_groups[::max(1, len(unique_groups)//5)]
                         cbar.set_ticks(tick_groups)
-    
     else:
         # Original coloring logic when data_group is None
         if highlight_outliers and np.any(outlier_mask):
@@ -504,13 +527,7 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
     
     # Add null distribution inset if provided
     if custom_null is not None:
-        from scipy.stats import gaussian_kde
-        from matplotlib.ticker import FormatStrFormatter
-        
-        custom_null = np.array(custom_null)
-        custom_null_clean = custom_null[~np.isnan(custom_null)]
-        
-        if len(custom_null_clean) > 10:  # Need sufficient data for KDE
+        if len(custom_null) > 10:  # Need sufficient data for KDE
             # Determine inset position based on stats_position to avoid overlap
             # Moved closer to corners
             inset_position_map = {
@@ -526,8 +543,8 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
             axins = ax.inset_axes(inset_bounds)
             
             # Compute KDE
-            kde = gaussian_kde(custom_null_clean)
-            x_kde = np.linspace(custom_null_clean.min(), custom_null_clean.max(), 200)
+            kde = sp.stats.gaussian_kde(custom_null)
+            x_kde = np.linspace(custom_null.min(), custom_null.max(), 200)
             y_kde = kde(x_kde)
             
             # Plot KDE
@@ -557,9 +574,9 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
             axins.set_yticks([])
             
             # Set x-axis to show observed value
-            x_margin = (custom_null_clean.max() - custom_null_clean.min()) * 0.05
-            axins.set_xlim(custom_null_clean.min() - x_margin, 
-                          custom_null_clean.max() + x_margin)
+            x_margin = (custom_null.max() - custom_null.min()) * 0.05
+            axins.set_xlim(custom_null.min() - x_margin, 
+                          custom_null.max() + x_margin)
             
             # Format x-tick labels to 1 decimal place
             axins.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
