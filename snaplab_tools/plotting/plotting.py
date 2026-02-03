@@ -23,14 +23,15 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
                     method='pearson', color="#3B3B3B", alpha=0.6, 
                     size=20, show_line=True, 
                     show_confidence=True, show_stats=True,
-                    stats_position='upper left', font_size=6,
+                    stats_position='upper left', fontsize=6,
                     grid=True, grid_alpha=0.3,
                     outlier_threshold=None, highlight_outliers=False, 
                     return_stats=False,
                     auto_polynomial=False, models_to_test=[1, 2, 3], 
                     model_selection_metric='variance_explained',
                     data_group=None, data_group_cmap='tab10',
-                    cbar_label='Data Values', show_colorbar=True):
+                    cbar_label='Data Values', show_colorbar=True,
+                    custom_pvalue=None, custom_null=None):
     """
     Enhanced correlation plot with automatic polynomial model selection and data group coloring.
     
@@ -62,7 +63,7 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
         Whether to display correlation statistics on plot
     stats_position : str, default 'upper left'
         Position of statistics text box
-    font_size : int, default 6
+    fontsize : int, default 6
         Base font size for labels and text
     grid : bool, default True
         Whether to show grid
@@ -87,6 +88,14 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
         Colormap to use for data group coloring. Good options: 'tab10', 'tab20', 'Set3', 'viridis'
     cbar_label : str, default 'Data Values'
         Label for the colorbar
+    custom_pvalue : float, optional
+        Custom p-value to display instead of the computed correlation p-value.
+        If provided, this will be shown in the annotation box but will NOT affect
+        the returned statistics. Not compatible with auto_polynomial=True.
+    custom_null : array-like, optional
+        Array of null distribution values (e.g., from spatial permutation testing).
+        If provided, an inset KDE plot will be added showing the empirical null
+        distribution with the observed correlation marked.
 
     Returns:
     --------
@@ -95,6 +104,11 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
     stats_dict : dict, optional
         Dictionary with correlation statistics (if return_stats=True)
     """
+    
+    # Check for incompatible parameters
+    if custom_pvalue is not None and auto_polynomial:
+        raise ValueError("custom_pvalue is not compatible with auto_polynomial=True. "
+                        "Please set auto_polynomial=False or remove custom_pvalue.")
     
     # Handle pandas Series input and extract labels
     x_series_name = None
@@ -143,6 +157,9 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
         method_name = "Spearman"
     else:
         raise ValueError("Method must be 'pearson' or 'spearman'")
+    
+    # Determine line color early for use in both regression line and inset
+    line_color = color if data_group is None else '#3B3B3B'
     
     # Detect outliers if requested
     outlier_mask = np.zeros(len(x_clean), dtype=bool)
@@ -219,17 +236,17 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
                     sm = plt.cm.ScalarMappable(cmap=listed_cmap, norm=norm)
                     sm.set_array([])
                     cbar = plt.colorbar(sm, ax=ax, shrink=0.8, aspect=20, pad=0.05)
-                    cbar.set_label(cbar_label, fontsize=font_size)
+                    cbar.set_label(cbar_label, fontsize=fontsize)
 
                     # Set colorbar ticks to show string labels
                     cbar.set_ticks(np.arange(n_groups))
                     if n_groups <= 10:
-                        cbar.set_ticklabels(unique_groups, fontsize=font_size-2)
+                        cbar.set_ticklabels(unique_groups, fontsize=fontsize-2)
                     else:
                         # For many groups, show fewer labels
                         tick_indices = np.linspace(0, n_groups-1, min(5, n_groups), dtype=int)
                         cbar.set_ticks(tick_indices)
-                        cbar.set_ticklabels([unique_groups[i] for i in tick_indices], fontsize=font_size-2)
+                        cbar.set_ticklabels([unique_groups[i] for i in tick_indices], fontsize=fontsize-2)
                 else:
                     # Original numeric colorbar
                     sm = plt.cm.ScalarMappable(cmap=cmap, 
@@ -237,7 +254,7 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
                                                             vmax=max(unique_groups)))
                     sm.set_array([])
                     cbar = plt.colorbar(sm, ax=ax, shrink=0.8, aspect=20, pad=0.05)
-                    cbar.set_label(cbar_label, fontsize=font_size)
+                    cbar.set_label(cbar_label, fontsize=fontsize)
                     
                     # Set colorbar ticks to show group numbers
                     if n_groups <= 10:
@@ -338,8 +355,6 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
                                5: 'Quintic', 6: 'Sextic'}
                 model_name = degree_names.get(best_degree, f'Degree {best_degree}')
                 
-                # Use the original color for regression line
-                line_color = color if data_group is None else '#3B3B3B'
                 ax.plot(x_line, y_line, color=line_color, linewidth=2.5, alpha=0.8, 
                        linestyle='-', 
                        label=f'{model_name} fit (R²={best_model["r_squared"]:.3f})')
@@ -380,7 +395,6 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
             y_line = slope * x_line + intercept
             
             # Plot regression line
-            line_color = color if data_group is None else '#3B3B3B'
             ax.plot(x_line, y_line, color=line_color, linewidth=2.5, alpha=0.8, 
                    linestyle='-', label='Linear regression')
             
@@ -422,19 +436,22 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
     
     # Add statistics text box
     if show_stats:
+        # Use custom p-value for display if provided, otherwise use computed p-value
+        display_pvalue = custom_pvalue if custom_pvalue is not None else p_value
+        
         # Determine significance stars
-        if p_value < 0.001:
+        if display_pvalue < 0.001:
             sig_stars = "***"
-        elif p_value < 0.01:
+        elif display_pvalue < 0.01:
             sig_stars = "**"
-        elif p_value < 0.05:
+        elif display_pvalue < 0.05:
             sig_stars = "*"
         else:
             sig_stars = "ns"
         
         # Create statistics text
         stats_text = f"r = {corr_coef:.2f}{sig_stars}\n"
-        stats_text += f"p = {p_value:.2e}"
+        stats_text += f"p = {display_pvalue:.2e}"
         
         # Add data group info if provided
         if data_group is not None:
@@ -483,14 +500,76 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
         ax.text(text_x, text_y, stats_text, transform=ax.transAxes,
                bbox=dict(boxstyle="round,pad=0.3", facecolor='white', 
                         edgecolor='gray', alpha=0.8),
-               fontsize=font_size-2, ha=ha, va=va, family='monospace')
+               fontsize=fontsize-2, ha=ha, va=va, family='monospace')
+    
+    # Add null distribution inset if provided
+    if custom_null is not None:
+        from scipy.stats import gaussian_kde
+        from matplotlib.ticker import FormatStrFormatter
+        
+        custom_null = np.array(custom_null)
+        custom_null_clean = custom_null[~np.isnan(custom_null)]
+        
+        if len(custom_null_clean) > 10:  # Need sufficient data for KDE
+            # Determine inset position based on stats_position to avoid overlap
+            # Moved closer to corners
+            inset_position_map = {
+                'upper left': [0.70, 0.75, 0.255, 0.2125],     # lower right
+                'upper right': [0.03, 0.75, 0.255, 0.2125],    # lower left
+                'lower left': [0.70, 0.08, 0.255, 0.2125],     # upper right
+                'lower right': [0.03, 0.08, 0.255, 0.2125]     # upper left
+            }
+            
+            inset_bounds = inset_position_map.get(stats_position, [0.70, 0.08, 0.255, 0.2125])
+            
+            # Create inset axes
+            axins = ax.inset_axes(inset_bounds)
+            
+            # Compute KDE
+            kde = gaussian_kde(custom_null_clean)
+            x_kde = np.linspace(custom_null_clean.min(), custom_null_clean.max(), 200)
+            y_kde = kde(x_kde)
+            
+            # Plot KDE
+            axins.plot(x_kde, y_kde, color='gray', linewidth=1, alpha=0.8)
+            axins.fill_between(x_kde, 0, y_kde, color='gray', alpha=0.3)
+            
+            # Mark observed correlation with same color as regression line
+            axins.axvline(corr_coef, color=line_color, linewidth=1.5, linestyle='--', alpha=0.8)
+            
+            # Shade tail beyond observed value
+            if corr_coef > 0:
+                # Shade right tail for positive correlations
+                tail_mask = x_kde >= corr_coef
+                axins.fill_between(x_kde[tail_mask], 0, y_kde[tail_mask], 
+                                  color=line_color, alpha=0.2)
+            else:
+                # Shade left tail for negative correlations
+                tail_mask = x_kde <= corr_coef
+                axins.fill_between(x_kde[tail_mask], 0, y_kde[tail_mask], 
+                                  color=line_color, alpha=0.2)
+            
+            # Style inset
+            axins.set_xlabel('null', fontsize=fontsize-2)
+            axins.tick_params(labelsize=fontsize-2, pad=1)
+            axins.spines['top'].set_visible(False)
+            axins.spines['right'].set_visible(False)
+            axins.set_yticks([])
+            
+            # Set x-axis to show observed value
+            x_margin = (custom_null_clean.max() - custom_null_clean.min()) * 0.05
+            axins.set_xlim(custom_null_clean.min() - x_margin, 
+                          custom_null_clean.max() + x_margin)
+            
+            # Format x-tick labels to 1 decimal place
+            axins.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
     
     # Customize appearance
-    ax.set_xlabel(x_label or 'X Variable', fontsize=font_size)
-    ax.set_ylabel(y_label or 'Y Variable', fontsize=font_size)
+    ax.set_xlabel(x_label or 'X Variable', fontsize=fontsize)
+    ax.set_ylabel(y_label or 'Y Variable', fontsize=fontsize)
     
     if title:
-        ax.set_title(title, fontsize=font_size, fontweight='bold', pad=10)
+        ax.set_title(title, fontsize=fontsize, fontweight='bold', pad=10)
     
     # Grid
     if grid:
@@ -504,7 +583,7 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
     ax.spines['bottom'].set_linewidth(1.2)
     
     # Tick parameters
-    ax.tick_params(axis='both', which='major', labelsize=font_size,
+    ax.tick_params(axis='both', which='major', labelsize=fontsize,
                   length=6, width=1.2, colors='black')
     
     # Prepare return values
