@@ -531,17 +531,23 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
             # Determine inset position based on stats_position to avoid overlap
             # Moved closer to corners
             inset_position_map = {
-                # 'upper left': [0.70, 0.75, 0.255, 0.2125],     # upper right
-                # 'upper right': [0.03, 0.75, 0.255, 0.2125],    # upper left
-                # 'lower left': [0.70, 0.08, 0.255, 0.2125],     # lower right
-                # 'lower right': [0.03, 0.08, 0.255, 0.2125]     # lower left
-                'upper left': [0.70, 0.08, 0.255, 0.2125],     # lower right
-                'upper right': [0.03, 0.08, 0.255, 0.2125],     # lower left
-                'lower left': [0.70, 0.75, 0.255, 0.2125],     # upper right
-                'lower right': [0.03, 0.75, 0.255, 0.2125]    # upper left
+                # 'upper left': (0.70, 0.75, 0.255, 0.2125),     # upper right
+                # 'upper right': (0.03, 0.75, 0.255, 0.2125),    # upper left
+                # 'lower left': (0.70, 0.08, 0.255, 0.2125),     # lower right
+                # 'lower right': (0.03, 0.08, 0.255, 0.2125)     # lower left
+                
+                # 'upper left': (0.70, 0.08, 0.255, 0.2125),     # lower right
+                # 'upper right': (0.03, 0.08, 0.255, 0.2125),     # lower left
+                # 'lower left': (0.70, 0.75, 0.255, 0.2125),     # upper right
+                # 'lower right': (0.03, 0.75, 0.255, 0.2125)    # upper left
+
+                'upper left': (0.03, 0.08, 0.255, 0.2125),     # lower left
+                'upper right': (0.70, 0.08, 0.255, 0.2125),     # lower right
+                'lower left': (0.03, 0.75, 0.255, 0.2125),    # upper left
+                'lower right': (0.70, 0.75, 0.255, 0.2125)     # upper right
             }
             
-            inset_bounds = inset_position_map[(stats_position)]
+            inset_bounds = inset_position_map[stats_position]
             
             # Create inset axes
             axins = ax.inset_axes(inset_bounds)
