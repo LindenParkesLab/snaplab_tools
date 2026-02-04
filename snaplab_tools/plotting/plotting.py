@@ -471,10 +471,16 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
             sig_stars = "*"
         else:
             sig_stars = "ns"
+
+        # Format p-value
+        if display_pvalue < 0.01:
+            p_str = f'p = {display_pvalue:.2e}'
+        else:
+            p_str = f'p = {display_pvalue:.2f}'
         
         # Create statistics text
-        stats_text = f"r = {corr_coef:.2f}{sig_stars}\n"
-        stats_text += f"p = {display_pvalue:.2e}"
+        corr_label = 'ρ' if method.lower() == 'spearman' else 'r'
+        stats_text = f"{corr_label} = {corr_coef:.2f}{sig_stars}\n{p_str}"
         
         # Add data group info if provided
         if data_group is not None:
@@ -541,9 +547,9 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
                 # 'lower left': (0.70, 0.75, 0.255, 0.2125),     # upper right
                 # 'lower right': (0.03, 0.75, 0.255, 0.2125)    # upper left
 
-                'upper left': (0.03, 0.08, 0.255, 0.2125),     # lower left
-                'upper right': (0.70, 0.08, 0.255, 0.2125),     # lower right
-                'lower left': (0.03, 0.75, 0.255, 0.2125),    # upper left
+                'upper left': (0.05, 0.1, 0.255, 0.2125),     # lower left
+                'upper right': (0.70, 0.1, 0.255, 0.2125),     # lower right
+                'lower left': (0.05, 0.75, 0.255, 0.2125),    # upper left
                 'lower right': (0.70, 0.75, 0.255, 0.2125)     # upper right
             }
             
@@ -634,8 +640,8 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
         return ax
 
 
-def plot_correlation_unity(x, y, ax, x_label=None, y_label=None, title=None,
-                           show_marginals=True, show_unity_line=True, show_zero_lines=True,
+def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
+                           show_marginals=False, show_unity_line=True, show_zero_lines=True,
                            color='#888888', alpha=0.5, s=5,
                            marginal_color_x='blue', marginal_color_y='red', marginal_alpha=0.25, fontsize=7,
                            show_correlation=False, correlation_type='pearson'):
@@ -654,8 +660,6 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None, title=None,
         Label for x-axis. If None, uses Series name if x is a Series, otherwise 'X'
     y_label : str, optional
         Label for y-axis. If None, uses Series name if y is a Series, otherwise 'Y'
-    title : str, optional
-        Plot title. If None, no title is displayed
     show_marginals : bool
         Whether to show marginal distributions
     show_unity_line : bool
@@ -693,6 +697,8 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None, title=None,
         - correlation: Pearson r between x and y
         - correlation_p: p-value for correlation
         - variance_diff_p: p-value for Levene's test of equal variances
+        - ttest_t: t-statistic for paired t-test (if show_marginals=True)
+        - ttest_p: p-value for paired t-test (if show_marginals=True)
     """
     # Handle pandas Series input and extract labels
     x_series_name = None
@@ -746,7 +752,9 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None, title=None,
             'compression_ratio': np.nan,
             'correlation': np.nan,
             'correlation_p': np.nan,
-            'variance_diff_p': np.nan
+            'variance_diff_p': np.nan,
+            'ttest_t': np.nan,
+            'ttest_p': np.nan
         }
     
     x_clean = x[valid_mask]
@@ -778,6 +786,12 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None, title=None,
         _, var_p = sp.stats.levene(x_clean, y_clean)
     else:
         var_p = np.nan
+    
+    # Paired t-test (if marginals will be shown)
+    if show_marginals and n_valid > 2:
+        t_stat, t_p = sp.stats.ttest_rel(x_clean, y_clean)
+    else:
+        t_stat, t_p = np.nan, np.nan
     
     # Get axis limits
     all_vals = np.concatenate([x_clean, y_clean])
@@ -869,18 +883,26 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None, title=None,
         }
         
         x_pos, y_pos, ha, va = position_map[best_quadrant]
+    
+        # Determine significance stars
+        if p < 0.001:
+            sig_stars = "***"
+        elif p < 0.01:
+            sig_stars = "**"
+        elif p < 0.05:
+            sig_stars = "*"
+        else:
+            sig_stars = "ns"
         
         # Format p-value
-        if p < 0.001:
-            p_str = 'p < 0.001'
-        elif p < 0.01:
-            p_str = f'p = {p:.3f}'
+        if p < 0.01:
+            p_str = f'p = {p:.2e}'
         else:
             p_str = f'p = {p:.2f}'
         
         # Create annotation text
         corr_label = 'ρ' if correlation_type.lower() == 'spearman' else 'r'
-        annotation_text = f'{corr_label} = {r:.2f}\n{p_str}'
+        annotation_text = f'{corr_label} = {r:.2f}{sig_stars}\n{p_str}'
         
         # Add text annotation
         ax.text(x_pos, y_pos, annotation_text,
@@ -897,9 +919,28 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None, title=None,
     ax.set_xlabel(x_label, fontsize=fontsize)
     ax.set_ylabel(y_label, fontsize=fontsize)
     
-    # Set title if provided
-    if title is not None:
-        ax.set_title(title, fontsize=fontsize)
+    # Set title with t-test if marginals are shown
+    if show_marginals and not np.isnan(t_stat):
+        # Determine significance stars for t-test
+        if t_p < 0.001:
+            t_sig_stars = "***"
+        elif t_p < 0.01:
+            t_sig_stars = "**"
+        elif t_p < 0.05:
+            t_sig_stars = "*"
+        else:
+            t_sig_stars = "ns"
+        
+        # Format p-value for t-test
+        if t_p < 0.01:
+            t_p_str = f'p = {t_p:.2e}'
+        else:
+            t_p_str = f'p = {t_p:.2f}'
+        
+        # Create t-test text
+        ttest_text = f't = {t_stat:.2f}{t_sig_stars}, {t_p_str}'
+        
+        ax.set_title(ttest_text, fontsize=fontsize-2)
     
     # Set tick label sizes
     ax.tick_params(axis='both', which='major', labelsize=fontsize)
@@ -925,7 +966,9 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None, title=None,
         'correlation_pearson_p': p_pearson,
         'correlation_spearman': r_spearman,
         'correlation_spearman_p': p_spearman,
-        'variance_diff_p': var_p
+        'variance_diff_p': var_p,
+        'ttest_t': t_stat,
+        'ttest_p': t_p
     }
     
     return stats_dict
