@@ -17,14 +17,16 @@ from nilearn import plotting
 from nilearn.image import new_img_like
 from nilearn.surface import load_surf_data, vol_to_surf
 
-from snaplab_tools.plotting.utils import get_p_val_string, roi_to_vtx, get_my_colors
+from snaplab_tools.plotting.utils import get_p_val_string, roi_to_vtx, get_my_colors, process_input_data, \
+    compute_correlation, create_correlation_text, add_stats_annotation, create_null_inset, style_correlation_axis, \
+        determine_significance, format_pvalue
 
 
 def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None, 
                     method='pearson', color="#3B3B3B", alpha=0.6, 
-                    size=20, show_line=True, 
+                    size=10, show_line=True, 
                     show_confidence=True, show_stats=True,
-                    stats_position='upper left', fontsize=6,
+                    stats_position='upper left', fontsize=8,
                     grid=True, grid_alpha=0.3,
                     outlier_threshold=None, highlight_outliers=False, 
                     return_stats=False,
@@ -54,7 +56,7 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
         Color for scatter points and regression line (used when data_group=None)
     alpha : float, default 0.6
         Transparency of scatter points
-    size : float, default 20
+    size : float, default 10
         Size of scatter points
     show_line : bool, default True
         Whether to show regression line
@@ -64,7 +66,7 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
         Whether to display correlation statistics on plot
     stats_position : str, default 'upper left'
         Position of statistics text box
-    fontsize : int, default 6
+    fontsize : int, default 8
         Base font size for labels and text
     grid : bool, default True
         Whether to show grid
@@ -109,82 +111,56 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
     stats_dict : dict, optional
         Dictionary with correlation statistics (if return_stats=True)
     """
-
-    # Handle pandas Series input and extract labels
-    x_series_name = None
-    y_series_name = None
     
-    if isinstance(x, pd.Series):
-        x_series_name = x.name
-        x = x.values
-    if isinstance(y, pd.Series):
-        y_series_name = y.name
-        y = y.values
+    # Process input data
+    data_dict = process_input_data(x, y, data_group)
+    x_clean = data_dict['x_clean']
+    y_clean = data_dict['y_clean']
+    valid_mask = data_dict['valid_mask']
     
-    # Set default labels from pandas Series names if not provided
-    if x_label is None and x_series_name is not None:
-        x_label = str(x_series_name)
-    if y_label is None and y_series_name is not None:
-        y_label = str(y_series_name)
+    # Set labels from extracted names or user-provided values
+    if x_label is None:
+        x_label = data_dict['x_label']
+    if y_label is None:
+        y_label = data_dict['y_label']
     
-    # Convert to numpy arrays and handle missing data
-    x = np.array(x, dtype=float)
-    y = np.array(y, dtype=float)
+    # Extract data_group_clean if present
+    data_group_clean = data_dict.get('data_group_clean', None)
     
-    # Handle data_group input
-    if data_group is not None:
-        data_group = np.array(data_group)  # Don't force dtype - allow strings or integers
-        if len(data_group) != len(x):
-            raise ValueError(f"data_group length ({len(data_group)}) must match x and y length ({len(x)})")
+    # Compute correlation
+    corr_dict = compute_correlation(x_clean, y_clean, method)
+    corr_coef = corr_dict['corr_coef']
+    p_value = corr_dict['p_value']
+    method_name = corr_dict['method_name']
     
-    # Remove NaN values
-    valid_mask = ~(np.isnan(x) | np.isnan(y))
-    x_clean = x[valid_mask]
-    y_clean = y[valid_mask]
-    
-    if data_group is not None:
-        data_group_clean = data_group[valid_mask]
-    
-    if len(x_clean) < 3:
-        raise ValueError("Need at least 3 valid data points for correlation")
-    
-    # Calculate correlation
-    if method.lower() == 'pearson':
-        corr_coef, p_value = sp.stats.pearsonr(x_clean, y_clean)
-        method_name = "Pearson"
-    elif method.lower() == 'spearman':
-        corr_coef, p_value = sp.stats.spearmanr(x_clean, y_clean)
-        method_name = "Spearman"
-    else:
-        raise ValueError("Method must be 'pearson' or 'spearman'")
-
-    # Extract custom_inset parameters
+    # Process custom_inset parameters
     custom_pvalue = None
     custom_null = None
     if custom_inset is not None:
         if not isinstance(custom_inset, dict):
             raise ValueError("custom_inset must be a dictionary")
+        
         custom_null = custom_inset.get('custom_null', None)
-        custom_null = np.array(custom_null)
-        custom_null = custom_null[~np.isnan(custom_null)]
-
-        # Compute p-value from null distribution if provided and custom_pvalue not specified
+        if custom_null is not None:
+            custom_null = np.array(custom_null)
+            custom_null = custom_null[~np.isnan(custom_null)]
+        
+        # Compute p-value from null distribution if not specified
         custom_pvalue = custom_inset.get('custom_pvalue', None)
-        if custom_pvalue is None:
-            if len(custom_null) > 0:
-                # One-tailed test based on sign of observed correlation
-                if corr_coef >= 0:
-                    # For positive correlations: proportion of null >= observed
-                    custom_pvalue = np.mean(custom_null >= corr_coef)
-                else:
-                    # For negative correlations: proportion of null <= observed
-                    custom_pvalue = np.mean(custom_null <= corr_coef)
-
+        if custom_pvalue is None and custom_null is not None and len(custom_null) > 0:
+            # One-tailed test based on sign of observed correlation
+            if corr_coef >= 0:
+                custom_pvalue = np.mean(custom_null >= corr_coef)
+            else:
+                custom_pvalue = np.mean(custom_null <= corr_coef)
+    
     # Check for incompatible parameters
     if custom_pvalue is not None and auto_polynomial:
-        raise ValueError("custom_inset['custom_pvalue'] is not compatible with auto_polynomial=True. "
-                        "Please set auto_polynomial=False or remove custom_pvalue from custom_inset.")
-
+        raise ValueError(
+            "custom_inset['custom_pvalue'] is not compatible with auto_polynomial=True. "
+            "Please set auto_polynomial=False or remove custom_pvalue from custom_inset."
+        )
+    
     # Determine line color early for use in both regression line and inset
     line_color = color if data_group is None else '#3B3B3B'
     
@@ -206,13 +182,10 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
         
         # Create colors for each group
         if n_groups <= 10 and data_group_cmap == 'tab10':
-            # Use discrete colors for tab10
             colors = [cmap(i) for i in range(n_groups)]
         elif n_groups <= 20 and data_group_cmap == 'tab20':
-            # Use discrete colors for tab20
             colors = [cmap(i) for i in range(n_groups)]
         else:
-            # Use continuous colormap
             colors = [cmap(i / max(1, n_groups - 1)) for i in range(n_groups)]
         
         # Create mapping from group labels to colors
@@ -248,45 +221,43 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
                           label=f'{group}')
         
         # Add colorbar for data groups
-        if show_colorbar:
-            if n_groups > 1:  # Only add colorbar if more than one group
-                # For string labels, we need to create a discrete colorbar
-                if isinstance(unique_groups[0], (str, np.str_)):
-                    # Create a listed colormap from the colors we're using
-                    listed_cmap = ListedColormap(colors[:n_groups])
-                    bounds = np.arange(n_groups + 1) - 0.5
-                    norm = BoundaryNorm(bounds, listed_cmap.N)
-                    
-                    sm = plt.cm.ScalarMappable(cmap=listed_cmap, norm=norm)
-                    sm.set_array([])
-                    cbar = plt.colorbar(sm, ax=ax, shrink=0.8, aspect=20, pad=0.05)
-                    cbar.set_label(cbar_label, fontsize=fontsize)
+        if show_colorbar and n_groups > 1:
+            # For string labels, create a discrete colorbar
+            if isinstance(unique_groups[0], (str, np.str_)):
+                listed_cmap = ListedColormap(colors[:n_groups])
+                bounds = np.arange(n_groups + 1) - 0.5
+                norm = BoundaryNorm(bounds, listed_cmap.N)
+                
+                sm = plt.cm.ScalarMappable(cmap=listed_cmap, norm=norm)
+                sm.set_array([])
+                cbar = plt.colorbar(sm, ax=ax, shrink=0.8, aspect=20, pad=0.05)
+                cbar.set_label(cbar_label, fontsize=fontsize)
 
-                    # Set colorbar ticks to show string labels
-                    cbar.set_ticks(np.arange(n_groups))
-                    if n_groups <= 10:
-                        cbar.set_ticklabels(unique_groups, fontsize=fontsize-2)
-                    else:
-                        # For many groups, show fewer labels
-                        tick_indices = np.linspace(0, n_groups-1, min(5, n_groups), dtype=int)
-                        cbar.set_ticks(tick_indices)
-                        cbar.set_ticklabels([unique_groups[i] for i in tick_indices], fontsize=fontsize-2)
+                # Set colorbar ticks to show string labels
+                cbar.set_ticks(np.arange(n_groups))
+                if n_groups <= 10:
+                    cbar.set_ticklabels(unique_groups, fontsize=fontsize-2)
                 else:
-                    # Original numeric colorbar
-                    sm = plt.cm.ScalarMappable(cmap=cmap, 
-                                            norm=plt.Normalize(vmin=min(unique_groups), 
-                                                            vmax=max(unique_groups)))
-                    sm.set_array([])
-                    cbar = plt.colorbar(sm, ax=ax, shrink=0.8, aspect=20, pad=0.05)
-                    cbar.set_label(cbar_label, fontsize=fontsize)
-                    
-                    # Set colorbar ticks to show group numbers
-                    if n_groups <= 10:
-                        cbar.set_ticks(unique_groups)
-                    else:
-                        # For many groups, show fewer ticks
-                        tick_groups = unique_groups[::max(1, len(unique_groups)//5)]
-                        cbar.set_ticks(tick_groups)
+                    tick_indices = np.linspace(0, n_groups-1, min(5, n_groups), dtype=int)
+                    cbar.set_ticks(tick_indices)
+                    cbar.set_ticklabels([unique_groups[i] for i in tick_indices], 
+                                       fontsize=fontsize-2)
+            else:
+                # Original numeric colorbar
+                sm = plt.cm.ScalarMappable(
+                    cmap=cmap, 
+                    norm=plt.Normalize(vmin=min(unique_groups), vmax=max(unique_groups))
+                )
+                sm.set_array([])
+                cbar = plt.colorbar(sm, ax=ax, shrink=0.8, aspect=20, pad=0.05)
+                cbar.set_label(cbar_label, fontsize=fontsize)
+                
+                # Set colorbar ticks to show group numbers
+                if n_groups <= 10:
+                    cbar.set_ticks(unique_groups)
+                else:
+                    tick_groups = unique_groups[::max(1, len(unique_groups)//5)]
+                    cbar.set_ticks(tick_groups)
     else:
         # Original coloring logic when data_group is None
         if highlight_outliers and np.any(outlier_mask):
@@ -310,12 +281,12 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
     # Add regression line and confidence interval
     if show_line and len(x_clean) > 2:
         
-        if auto_polynomial and len(x_clean) >= (max(models_to_test) + 1):  # Need more points than max degree
+        if auto_polynomial and len(x_clean) >= (max(models_to_test) + 1):
             # Test specified polynomial degrees
             model_results = {}
             
             for degree in models_to_test:
-                if len(x_clean) > degree:  # Need more points than parameters
+                if len(x_clean) > degree:
                     try:
                         # Fit polynomial
                         poly_coeffs = np.polyfit(x_clean, y_clean, degree)
@@ -329,10 +300,8 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
                         # Variance explained (R²)
                         r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
                         
-                        # RMSE
+                        # RMSE and MAE
                         rmse = np.sqrt(np.mean(residuals ** 2))
-                        
-                        # MAE
                         mae = np.mean(np.abs(residuals))
                         
                         model_results[degree] = {
@@ -343,7 +312,6 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
                             'y_pred': y_pred
                         }
                     except (np.RankWarning, np.linalg.LinAlgError):
-                        # Skip this degree if fitting fails
                         continue
             
             # Select best model based on chosen metric
@@ -358,7 +326,9 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
                     best_degree = min(model_results.keys(), 
                                     key=lambda k: model_results[k]['mae'])
                 else:
-                    raise ValueError("model_selection_metric must be 'variance_explained', 'rmse', or 'mae'")
+                    raise ValueError(
+                        "model_selection_metric must be 'variance_explained', 'rmse', or 'mae'"
+                    )
                 
                 best_model = model_results[best_degree]
                 best_model_info = {
@@ -382,10 +352,11 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
                        linestyle='-', 
                        label=f'{model_name} fit (R²={best_model["r_squared"]:.3f})')
                 
-                # Add confidence interval for polynomial (approximation)
-                if show_confidence and best_degree == 1:  # Only for linear
-                    # Use the original linear regression confidence interval calculation
-                    slope, intercept, r_value, p_value_reg, std_err = sp.stats.linregress(x_clean, y_clean)
+                # Add confidence interval for linear only
+                if show_confidence and best_degree == 1:
+                    slope, intercept, r_value, p_value_reg, std_err = sp.stats.linregress(
+                        x_clean, y_clean
+                    )
                     
                     def predict_interval(x_new, x_data, y_data, confidence=0.95):
                         n = len(x_data)
@@ -411,7 +382,9 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
         
         if not auto_polynomial:
             # Original linear regression
-            slope, intercept, r_value, p_value_reg, std_err = sp.stats.linregress(x_clean, y_clean)
+            slope, intercept, r_value, p_value_reg, std_err = sp.stats.linregress(
+                x_clean, y_clean
+            )
             
             # Create line points
             x_line = np.linspace(np.min(x_clean), np.max(x_clean), 100)
@@ -459,165 +432,38 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
     
     # Add statistics text box
     if show_stats:
-        # Use custom p-value for display if provided, otherwise use computed p-value
+        # Use custom p-value for display if provided
         display_pvalue = custom_pvalue if custom_pvalue is not None else p_value
         
-        # Determine significance stars
-        if display_pvalue < 0.001:
-            sig_stars = "***"
-        elif display_pvalue < 0.01:
-            sig_stars = "**"
-        elif display_pvalue < 0.05:
-            sig_stars = "*"
-        else:
-            sig_stars = "ns"
-
-        # Format p-value
-        if display_pvalue < 0.01:
-            p_str = f'p = {display_pvalue:.2e}'
-        else:
-            p_str = f'p = {display_pvalue:.2f}'
-        
-        # Create statistics text
-        corr_label = 'ρ' if method.lower() == 'spearman' else 'r'
-        stats_text = f"{corr_label} = {corr_coef:.2f}{sig_stars}\n{p_str}"
-        
-        # Add data group info if provided
+        # Prepare data group info for text creation
+        data_group_info = None
         if data_group is not None:
             unique_groups = np.unique(data_group_clean)
-            # Show actual group labels if they're short enough
-            if len(unique_groups) <= 5:
-                if isinstance(unique_groups[0], (str, np.str_)):
-                    group_labels = ", ".join([str(g) for g in unique_groups])
-                    if len(group_labels) <= 20:  # Only show if not too long
-                        stats_text += f"\n({group_labels})"
-        
-        # Add model information if available and auto_polynomial was used
-        if best_model_info is not None and auto_polynomial:
-            degree_names = {1: 'Linear', 2: 'Quadratic', 3: 'Cubic', 4: 'Quartic', 
-                           5: 'Quintic', 6: 'Sextic'}
-            model_name = degree_names.get(best_model_info['degree'], f"Degree {best_model_info['degree']}")
-            metric_values = {
-                'variance_explained': best_model_info['r_squared'],
-                'rmse': best_model_info['rmse'],
-                'mae': best_model_info['mae']
+            data_group_info = {
+                'unique_groups': unique_groups,
+                'group_type': 'string' if isinstance(unique_groups[0], (str, np.str_)) else 'numeric'
             }
-            metric_labels = {
-                'variance_explained': 'R²',
-                'rmse': 'RMSE',
-                'mae': 'MAE'
-            }
-            metric_value = metric_values.get(model_selection_metric, 0)
-            metric_label = metric_labels.get(model_selection_metric, model_selection_metric)
-            stats_text += f"\n{metric_label} = {metric_value:.2f}"
         
-        if np.any(outlier_mask):
-            stats_text += f"\nOutliers: {np.sum(outlier_mask)}"
+        # Create statistics text
+        stats_text = create_correlation_text(
+            corr_coef=corr_coef,
+            p_value=display_pvalue,
+            method=method,
+            n_outliers=np.sum(outlier_mask) if outlier_threshold else 0,
+            model_info=best_model_info if auto_polynomial else None,
+            data_group_info=data_group_info
+        )
         
-        # Position the text box
-        position_dict = {
-            'upper left': (0.05, 0.95),
-            'upper right': (0.95, 0.95),
-            'lower left': (0.05, 0.05),
-            'lower right': (0.95, 0.05)
-        }
-        
-        text_x, text_y = position_dict.get(stats_position, (0.05, 0.95))
-        ha = 'left' if text_x < 0.5 else 'right'
-        va = 'top' if text_y > 0.5 else 'bottom'
-        
-        ax.text(text_x, text_y, stats_text, transform=ax.transAxes,
-               bbox=dict(boxstyle="round,pad=0.3", facecolor='white', 
-                        edgecolor='gray', alpha=0.8),
-               fontsize=fontsize-2, ha=ha, va=va, family='monospace')
+        # Add annotation to plot
+        add_stats_annotation(ax, stats_text, stats_position, fontsize)
     
     # Add null distribution inset if provided
     if custom_null is not None:
-        if len(custom_null) > 10:  # Need sufficient data for KDE
-            # Determine inset position based on stats_position to avoid overlap
-            # Moved closer to corners
-            inset_position_map = {
-                # 'upper left': (0.70, 0.75, 0.255, 0.2125),     # upper right
-                # 'upper right': (0.03, 0.75, 0.255, 0.2125),    # upper left
-                # 'lower left': (0.70, 0.08, 0.255, 0.2125),     # lower right
-                # 'lower right': (0.03, 0.08, 0.255, 0.2125)     # lower left
-                
-                # 'upper left': (0.70, 0.08, 0.255, 0.2125),     # lower right
-                # 'upper right': (0.03, 0.08, 0.255, 0.2125),     # lower left
-                # 'lower left': (0.70, 0.75, 0.255, 0.2125),     # upper right
-                # 'lower right': (0.03, 0.75, 0.255, 0.2125)    # upper left
-
-                'upper left': (0.05, 0.1, 0.255, 0.2125),     # lower left
-                'upper right': (0.70, 0.1, 0.255, 0.2125),     # lower right
-                'lower left': (0.05, 0.75, 0.255, 0.2125),    # upper left
-                'lower right': (0.70, 0.75, 0.255, 0.2125)     # upper right
-            }
-            
-            inset_bounds = inset_position_map[stats_position]
-            
-            # Create inset axes
-            axins = ax.inset_axes(inset_bounds)
-            
-            # Compute KDE
-            kde = sp.stats.gaussian_kde(custom_null)
-            x_kde = np.linspace(custom_null.min(), custom_null.max(), 200)
-            y_kde = kde(x_kde)
-            
-            # Plot KDE
-            axins.plot(x_kde, y_kde, color='gray', linewidth=1, alpha=0.8)
-            axins.fill_between(x_kde, 0, y_kde, color='gray', alpha=0.3)
-            
-            # Mark observed correlation with same color as regression line
-            axins.axvline(corr_coef, color=line_color, linewidth=1.5, linestyle='--', alpha=0.8)
-            
-            # Shade tail beyond observed value
-            if corr_coef > 0:
-                # Shade right tail for positive correlations
-                tail_mask = x_kde >= corr_coef
-                axins.fill_between(x_kde[tail_mask], 0, y_kde[tail_mask], 
-                                  color=line_color, alpha=0.2)
-            else:
-                # Shade left tail for negative correlations
-                tail_mask = x_kde <= corr_coef
-                axins.fill_between(x_kde[tail_mask], 0, y_kde[tail_mask], 
-                                  color=line_color, alpha=0.2)
-            
-            # Style inset
-            # axins.set_xlabel('null', fontsize=fontsize-2)
-            axins.tick_params(labelsize=fontsize-2, pad=1)
-            axins.spines['top'].set_visible(False)
-            axins.spines['right'].set_visible(False)
-            axins.set_yticks([])
-            
-            # Set x-axis to show observed value
-            x_margin = (custom_null.max() - custom_null.min()) * 0.05
-            axins.set_xlim(custom_null.min() - x_margin, 
-                          custom_null.max() + x_margin)
-            
-            # Format x-tick labels to 1 decimal place
-            axins.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+        create_null_inset(ax, custom_null, corr_coef, stats_position, 
+                         line_color, fontsize)
     
-    # Customize appearance
-    ax.set_xlabel(x_label or 'X Variable', fontsize=fontsize)
-    ax.set_ylabel(y_label or 'Y Variable', fontsize=fontsize)
-    
-    if title:
-        ax.set_title(title, fontsize=fontsize, fontweight='bold', pad=10)
-    
-    # Grid
-    if grid:
-        ax.grid(True, alpha=grid_alpha, linestyle='-', linewidth=0.5)
-        ax.set_axisbelow(True)
-    
-    # Styling
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_linewidth(1.2)
-    ax.spines['bottom'].set_linewidth(1.2)
-    
-    # Tick parameters
-    ax.tick_params(axis='both', which='major', labelsize=fontsize,
-                  length=6, width=1.2, colors='black')
+    # Apply axis styling
+    style_correlation_axis(ax, x_label, y_label, title, fontsize, grid, grid_alpha)
     
     # Prepare return values
     if return_stats:
@@ -632,7 +478,9 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
             'data_group_info': {
                 'n_groups': len(np.unique(data_group_clean)) if data_group is not None else None,
                 'unique_groups': np.unique(data_group_clean).tolist() if data_group is not None else None,
-                'group_type': 'string' if data_group is not None and isinstance(np.unique(data_group_clean)[0], (str, np.str_)) else 'numeric'
+                'group_type': 'string' if data_group is not None and isinstance(
+                    np.unique(data_group_clean)[0], (str, np.str_)
+                ) else 'numeric'
             } if data_group is not None else None
         }
         return ax, stats_dict
@@ -642,8 +490,10 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
 
 def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
                            show_marginals=False, show_unity_line=True, show_zero_lines=True,
-                           color='#888888', alpha=0.5, s=5,
-                           marginal_color_x='blue', marginal_color_y='red', marginal_alpha=0.25, fontsize=7,
+                           color='#3B3B3B', alpha=0.5, size=10,
+                           marginal_color_x='blue', marginal_color_y='red', 
+                           marginal_alpha=0.25, fontsize=8,
+                           grid=True, grid_alpha=0.3,
                            show_correlation=False, correlation_type='pearson'):
     """
     Plot comparison between two sets of measurements with optional marginals and statistics.
@@ -667,11 +517,11 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
     show_zero_lines : bool
         Whether to show x=0 and y=0 reference lines
     color : str or color
-        Color for scatter points (default: soft gray '#888888')
+        Color for scatter points (default: '#3B3B3B')
     alpha : float
         Transparency for scatter points
-    s : float
-        Size of scatter points (default: 5)
+    size : float
+        Size of scatter points (default: 10)
     marginal_color_x : str or color
         Color for x marginal distribution
     marginal_color_y : str or color
@@ -679,7 +529,11 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
     marginal_alpha : float
         Transparency for marginal distributions
     fontsize : float
-        Font size for all text elements (labels, title, tick labels) (default: 7)
+        Font size for all text elements (labels, title, tick labels) (default: 8)
+    grid : bool, default True
+        Whether to show grid
+    grid_alpha : float, default 0.3
+        Grid transparency
     show_correlation : bool
         Whether to show correlation annotation (default: False)
     correlation_type : str
@@ -694,51 +548,32 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
         - x_mean, x_std: statistics for x
         - y_mean, y_std: statistics for y
         - compression_ratio: std_y / std_x
-        - correlation: Pearson r between x and y
+        - correlation: correlation coefficient between x and y
         - correlation_p: p-value for correlation
+        - correlation_pearson: Pearson r between x and y
+        - correlation_pearson_p: p-value for Pearson correlation
+        - correlation_spearman: Spearman ρ between x and y
+        - correlation_spearman_p: p-value for Spearman correlation
         - variance_diff_p: p-value for Levene's test of equal variances
         - ttest_t: t-statistic for paired t-test (if show_marginals=True)
         - ttest_p: p-value for paired t-test (if show_marginals=True)
-    """
-    # Handle pandas Series input and extract labels
-    x_series_name = None
-    y_series_name = None
+    """ 
     
-    if isinstance(x, pd.Series):
-        x_series_name = x.name
-        x = x.values
-    if isinstance(y, pd.Series):
-        y_series_name = y.name
-        y = y.values
+    # Process input data
+    data_dict = process_input_data(x, y)
+    x_clean = data_dict['x_clean']
+    y_clean = data_dict['y_clean']
+    valid_mask = data_dict['valid_mask']
+    n_valid = data_dict['n_valid']
+    n_invalid = data_dict['n_invalid']
     
-    # Set default labels from pandas Series names if not provided
-    if x_label is None and x_series_name is not None:
-        x_label = str(x_series_name)
-    elif x_label is None:
-        x_label = 'X'
-        
-    if y_label is None and y_series_name is not None:
-        y_label = str(y_series_name)
-    elif y_label is None:
-        y_label = 'Y'
+    # Set labels from extracted names or user-provided values
+    if x_label is None:
+        x_label = data_dict['x_label'] or 'X'
+    if y_label is None:
+        y_label = data_dict['y_label'] or 'Y'
     
-    # Convert to numpy arrays and handle missing data
-    x = np.array(x, dtype=float)
-    y = np.array(y, dtype=float)
-    
-    # Flatten if needed
-    x = x.flatten()
-    y = y.flatten()
-    
-    # Check dimensions match
-    if len(x) != len(y):
-        raise ValueError(f"x and y must have same length. Got x={len(x)}, y={len(y)}")
-    
-    # Handle NaNs - only keep pairs where both values are valid
-    valid_mask = ~(np.isnan(x) | np.isnan(y))
-    n_valid = valid_mask.sum()
-    n_invalid = len(x) - n_valid
-    
+    # Handle case with no valid data
     if n_valid == 0:
         ax.text(0.5, 0.5, 'No valid data', 
                ha='center', va='center', transform=ax.transAxes, fontsize=fontsize)
@@ -757,9 +592,6 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
             'ttest_p': np.nan
         }
     
-    x_clean = x[valid_mask]
-    y_clean = y[valid_mask]
-    
     # Compute statistics
     x_mean = x_clean.mean()
     x_std = x_clean.std()
@@ -767,19 +599,24 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
     y_std = y_clean.std()
     compression_ratio = y_std / x_std if x_std > 0 else np.nan
     
-    # Correlation
+    # Compute both correlations
     if n_valid > 2:
-        r_pearson, p_pearson = sp.stats.pearsonr(x_clean, y_clean)
-        r_spearman, p_spearman = sp.stats.spearmanr(x_clean, y_clean)
+        corr_pearson = compute_correlation(x_clean, y_clean, 'pearson')
+        corr_spearman = compute_correlation(x_clean, y_clean, 'spearman')
+        
+        # Select which correlation to use based on correlation_type
+        if correlation_type.lower() == 'spearman':
+            corr_dict = corr_spearman
+        else:
+            corr_dict = corr_pearson
+        
+        corr_coef = corr_dict['corr_coef']
+        p_value = corr_dict['p_value']
     else:
-        r_pearson, p_pearson = np.nan, np.nan
-        r_spearman, p_spearman = np.nan, np.nan
-    
-    # Select which correlation to use
-    if correlation_type.lower() == 'spearman':
-        r, p = r_spearman, p_spearman
-    else:
-        r, p = r_pearson, p_pearson
+        corr_pearson = {'corr_coef': np.nan, 'p_value': np.nan}
+        corr_spearman = {'corr_coef': np.nan, 'p_value': np.nan}
+        corr_coef = np.nan
+        p_value = np.nan
     
     # Variance difference test
     if n_valid > 2:
@@ -789,9 +626,9 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
     
     # Paired t-test (if marginals will be shown)
     if show_marginals and n_valid > 2:
-        t_stat, t_p = sp.stats.ttest_rel(x_clean, y_clean)
+        t_stat, t_p_value = sp.stats.ttest_rel(x_clean, y_clean)
     else:
-        t_stat, t_p = np.nan, np.nan
+        t_stat, t_p_value = np.nan, np.nan
     
     # Get axis limits
     all_vals = np.concatenate([x_clean, y_clean])
@@ -808,7 +645,7 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
         ax.axhline(0, color='gray', linestyle=':', alpha=0.3, linewidth=1, zorder=1)
         ax.axvline(0, color='gray', linestyle=':', alpha=0.3, linewidth=1, zorder=1)
     
-    # Add marginal distributions using KDE (plot these first, with lower zorder)
+    # Add marginal distributions using KDE
     if show_marginals and n_valid > 5:
         kde_height = (lim_max - lim_min) * 0.10
         
@@ -828,7 +665,6 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
                            linewidth=1,
                            zorder=2)
         except np.linalg.LinAlgError:
-            # Fall back to histogram if KDE fails (e.g., all values identical)
             pass
         
         # Y marginal (right)
@@ -847,73 +683,40 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
                             linewidth=1,
                             zorder=2)
         except np.linalg.LinAlgError:
-            # Fall back to histogram if KDE fails
             pass
     
-    # Scatter plot (plot last with higher zorder so it's on top)
+    # Scatter plot
     ax.scatter(x_clean, y_clean, 
-              s=s, alpha=alpha, 
+              s=size, alpha=alpha,
               edgecolors='black', linewidths=0.5,
               c=color, zorder=3)
     
     # Add correlation annotation if requested
-    if show_correlation and not np.isnan(r):
+    if show_correlation and not np.isnan(corr_coef):
         # Find best position to minimize overlap with points
-        # Test 4 corners: lower-left, lower-right, upper-left, upper-right
         x_mid = (lim_min + lim_max) / 2
         y_mid = (lim_min + lim_max) / 2
         
         # Count points in each quadrant
         quadrant_counts = {
-            'lower_left': np.sum((x_clean < x_mid) & (y_clean < y_mid)),
-            'lower_right': np.sum((x_clean >= x_mid) & (y_clean < y_mid)),
-            'upper_left': np.sum((x_clean < x_mid) & (y_clean >= y_mid)),
-            'upper_right': np.sum((x_clean >= x_mid) & (y_clean >= y_mid))
+            'lower left': np.sum((x_clean < x_mid) & (y_clean < y_mid)),
+            'lower right': np.sum((x_clean >= x_mid) & (y_clean < y_mid)),
+            'upper left': np.sum((x_clean < x_mid) & (y_clean >= y_mid)),
+            'upper right': np.sum((x_clean >= x_mid) & (y_clean >= y_mid))
         }
         
         # Choose quadrant with fewest points
-        best_quadrant = min(quadrant_counts, key=quadrant_counts.get)
+        best_position = min(quadrant_counts, key=quadrant_counts.get)
         
-        # Map quadrant to position coordinates
-        position_map = {
-            'lower_left': (0.05, 0.05, 'left', 'bottom'),
-            'lower_right': (0.95, 0.05, 'right', 'bottom'),
-            'upper_left': (0.05, 0.95, 'left', 'top'),
-            'upper_right': (0.95, 0.95, 'right', 'top')
-        }
+        # Create statistics text
+        stats_text = create_correlation_text(
+            corr_coef=corr_coef,
+            p_value=p_value,
+            method=correlation_type
+        )
         
-        x_pos, y_pos, ha, va = position_map[best_quadrant]
-    
-        # Determine significance stars
-        if p < 0.001:
-            sig_stars = "***"
-        elif p < 0.01:
-            sig_stars = "**"
-        elif p < 0.05:
-            sig_stars = "*"
-        else:
-            sig_stars = "ns"
-        
-        # Format p-value
-        if p < 0.01:
-            p_str = f'p = {p:.2e}'
-        else:
-            p_str = f'p = {p:.2f}'
-        
-        # Create annotation text
-        corr_label = 'ρ' if correlation_type.lower() == 'spearman' else 'r'
-        annotation_text = f'{corr_label} = {r:.2f}{sig_stars}\n{p_str}'
-        
-        # Add text annotation
-        ax.text(x_pos, y_pos, annotation_text,
-               transform=ax.transAxes,
-               fontsize=fontsize-2,
-               ha=ha, va=va,
-               bbox=dict(boxstyle='round,pad=0.3', 
-                        facecolor='white', 
-                        edgecolor='gray',
-                        alpha=0.8,
-                        linewidth=0.5))
+        # Add annotation to plot
+        add_stats_annotation(ax, stats_text, best_position, fontsize)
     
     # Set labels
     ax.set_xlabel(x_label, fontsize=fontsize)
@@ -921,26 +724,11 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
     
     # Set title with t-test if marginals are shown
     if show_marginals and not np.isnan(t_stat):
-        # Determine significance stars for t-test
-        if t_p < 0.001:
-            t_sig_stars = "***"
-        elif t_p < 0.01:
-            t_sig_stars = "**"
-        elif t_p < 0.05:
-            t_sig_stars = "*"
-        else:
-            t_sig_stars = "ns"
-        
-        # Format p-value for t-test
-        if t_p < 0.01:
-            t_p_str = f'p = {t_p:.2e}'
-        else:
-            t_p_str = f'p = {t_p:.2f}'
-        
-        # Create t-test text
-        ttest_text = f't = {t_stat:.2f}{t_sig_stars}, {t_p_str}'
-        
-        ax.set_title(ttest_text, fontsize=fontsize-2)
+        # Create title with t-test information
+        t_sig_stars = determine_significance(t_p_value)
+        t_p_str = format_pvalue(t_p_value)
+        title_text = f't={t_stat:.2f}{t_sig_stars}, {t_p_str}'
+        ax.set_title(title_text, fontsize=fontsize-2)
     
     # Set tick label sizes
     ax.tick_params(axis='both', which='major', labelsize=fontsize)
@@ -949,7 +737,10 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
     ax.set_xlim(lim_min, lim_max)
     ax.set_ylim(lim_min, lim_max)
     ax.set_aspect('equal')
-    ax.grid(True, alpha=0.2, linestyle='-', linewidth=0.5)
+    
+    # Apply grid with custom alpha
+    if grid:
+        ax.grid(True, alpha=grid_alpha, linestyle='-', linewidth=0.5)
     
     # Compile statistics
     stats_dict = {
@@ -960,15 +751,15 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
         'y_mean': y_mean,
         'y_std': y_std,
         'compression_ratio': compression_ratio,
-        'correlation': r,
-        'correlation_p': p,
-        'correlation_pearson': r_pearson,
-        'correlation_pearson_p': p_pearson,
-        'correlation_spearman': r_spearman,
-        'correlation_spearman_p': p_spearman,
+        'correlation': corr_coef,
+        'correlation_p': p_value,
+        'correlation_pearson': corr_pearson['corr_coef'],
+        'correlation_pearson_p': corr_pearson['p_value'],
+        'correlation_spearman': corr_spearman['corr_coef'],
+        'correlation_spearman_p': corr_spearman['p_value'],
         'variance_diff_p': var_p,
         'ttest_t': t_stat,
-        'ttest_p': t_p
+        'ttest_p': t_p_value
     }
     
     return stats_dict
