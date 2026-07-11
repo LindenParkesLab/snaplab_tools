@@ -6,6 +6,7 @@ import nibabel as nib
 
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 from matplotlib.ticker import FormatStrFormatter
 from nilearn import datasets
 from nilearn import plotting
@@ -532,6 +533,28 @@ def style_correlation_axis(ax, x_label, y_label, title=None,
                   length=6, width=1.2, colors='black')
 
 
+def create_sydnor_sa_colormap():
+    """Create the Sydnor S-A colormap (orange sensorimotor pole -> white -> purple association).
+
+    Also registers it with matplotlib under the name 'sydnor_sa'.
+
+    Returns
+    -------
+    matplotlib.colors.LinearSegmentedColormap
+        The custom colormap.
+    """
+    colors = [
+        (0.0, '#FFA500'),   # orange (sensorimotor pole, low rank)
+        (0.5, '#FFFFFF'),   # white (midpoint)
+        (1.0, '#8A2BE2'),   # purple (association pole, high rank)
+    ]
+    sydnor_sa = mcolors.LinearSegmentedColormap.from_list('sydnor_sa', colors, N=256)
+    try:
+        plt.colormaps.register(cmap=sydnor_sa, name='sydnor_sa')
+    except Exception:
+        pass
+    return sydnor_sa
+
 ######################################################################################################################################################
 # deprecated functions. Maintained for historical purposes, but have been replaced by newer functions.
 ######################################################################################################################################################
@@ -539,7 +562,9 @@ def get_p_val_string(p_val):
     # if np.round(p_val, 3) == 0.000:
         # p_str = "-log10($\mathit{:}$)>25".format('{p}')
     if p_val < 0.05:
-        p_str = '$\mathit{:}$={:0.0e}'.format('{p}', p_val)
+        # Two significant digits in the mantissa: '{:0.0e}' rounded 1.76e-2 -> "2e-02",
+        # which reads as a different p-value than the one being reported (e.g. 1.76e-02).
+        p_str = '$\mathit{:}$={:.2e}'.format('{p}', p_val)
     else:
         p_str = "$\mathit{:}$={:.3f}".format('{p}', p_val)
 
