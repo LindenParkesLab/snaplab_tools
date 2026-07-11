@@ -1,6 +1,9 @@
 import numpy as np
+import pandas as pd
 import scipy as sp
 from scipy import stats
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
 
 
 def steiger_test(r_xy, r_xz, r_yz, n, alternative='two-sided'):
@@ -199,5 +202,120 @@ def permutation_correlation_test(x, y, z, n_permutations=10000, method='spearman
         p = np.mean(perm_diffs >= obs_diff)
     else:
         raise ValueError("alternative must be 'two-sided', 'less', or 'greater'")
-    
+
     return obs_diff, p
+
+
+def compute_stat(x, y, method='pearson'):
+    """Compute a correlation or R^2 statistic with its parametric p-value.
+
+    Parameters
+    ----------
+    x, y : ndarray
+        1-D arrays (NaN-free).
+    method : {'pearson', 'spearman', 'r2'}
+        Statistic to compute.
+
+    Returns
+    -------
+    stat : float
+        r, rho, or R^2.
+    p : float
+        Parametric p-value.
+    """
+    if method == 'pearson':
+        return stats.pearsonr(x, y)
+    elif method == 'spearman':
+        r, p = stats.spearmanr(x, y)
+        return r, p
+    elif method == 'r2':
+        X = x.reshape(-1, 1)
+        model = LinearRegression().fit(X, y)
+        r2 = r2_score(y, model.predict(X))
+        n = len(x)
+        if r2 >= 1.0:
+            return r2, 0.0
+        elif r2 <= 0:
+            return r2, 1.0
+        f_stat = (r2 * (n - 2)) / (1 - r2)
+        p = 1 - stats.f.cdf(f_stat, 1, n - 2)
+        return r2, p
+    else:
+        raise ValueError(f"method must be 'pearson', 'spearman', or 'r2', got '{method}'")
+
+
+def correlate_dataframes(df_neuro, df_ints, method='pearson', alpha=0.05,
+                         null_distributions=None):
+    """Correlate every column of df_neuro with every column of df_ints.
+
+    Parameters
+    ----------
+    df_neuro : pd.DataFrame
+        Regions x features.
+    df_ints : pd.DataFrame
+        Regions x conditions.
+    method : {'pearson', 'spearman', 'r2'}
+        Statistic to compute per pair.
+    alpha : float
+        Significance threshold (carried for the caller; not applied here).
+    null_distributions : dict or None
+        {int_col: (n_perms, n_regions)}. If provided, one-tailed permutation
+        p-values are used instead of parametric ones; must cover all df_ints columns.
+
+    Returns
+    -------
+    df_results : pd.DataFrame
+        Statistics (neuro features x INT conditions).
+    df_pvals : pd.DataFrame
+        P-values, same shape.
+    """
+    if len(df_neuro) != len(df_ints):
+        raise ValueError(
+            f"DataFrames must have the same number of rows. "
+            f"Got {len(df_neuro)} and {len(df_ints)}"
+        )
+    if null_distributions is not None:
+        missing = set(df_ints.columns) - set(null_distributions)
+        if missing:
+            raise ValueError(f"null_distributions missing columns: {missing}")
+
+    use_perm = null_distributions is not None
+    results, pvals = [], []
+
+    for neuro_col in df_neuro.columns:
+        row_r, row_p = [], []
+        for int_col in df_ints.columns:
+            mask = ~(df_neuro[neuro_col].isna() | df_ints[int_col].isna())
+            x = df_neuro.loc[mask, neuro_col].values.astype(float)
+            y = df_ints.loc[mask, int_col].values.astype(float)
+
+            if len(x) < 3:
+                row_r.append(np.nan)
+                row_p.append(np.nan)
+                continue
+
+            stat_obs, p_param = compute_stat(x, y, method)
+            row_r.append(stat_obs)
+
+            if use_perm:
+                null = null_distributions[int_col]           # (n_perms, n_regions)
+                null_masked = null[:, mask]
+                perm_stats = np.array([
+                    compute_stat(x, null_masked[i], method)[0]
+                    for i in range(null.shape[0])
+                ])
+                if method == 'r2':
+                    row_p.append(float(np.mean(perm_stats >= stat_obs)))
+                elif stat_obs >= 0:
+                    row_p.append(float(np.mean(perm_stats >= stat_obs)))
+                else:
+                    row_p.append(float(np.mean(perm_stats <= stat_obs)))
+            else:
+                row_p.append(p_param)
+
+        results.append(row_r)
+        pvals.append(row_p)
+
+    df_results = pd.DataFrame(results, index=df_neuro.columns, columns=df_ints.columns)
+    df_pvals   = pd.DataFrame(pvals,   index=df_neuro.columns, columns=df_ints.columns)
+    return df_results, df_pvals
