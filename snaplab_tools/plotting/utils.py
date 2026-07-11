@@ -13,6 +13,17 @@ from nilearn import plotting
 
 
 def set_plotting_params(format='png'):
+    """Set global matplotlib/seaborn parameters for publication figures.
+
+    Sets Type-42 (editable) PDF/PS fonts, an 8pt base font size, the savefig
+    format, and a seaborn whitegrid/paper style. On macOS, clears the matplotlib
+    font cache first.
+
+    Parameters
+    ----------
+    format : str
+        Default savefig format (e.g. 'png', 'pdf', 'svg').
+    """
     if platform.system() == 'Darwin':
         os.system('rm -rf ~/.cache/matplotlib')
     plt.rcParams['pdf.fonttype'] = 42
@@ -25,6 +36,22 @@ def set_plotting_params(format='png'):
 
 
 def get_my_colors(normalize=True, as_list=False, cat_trio=False):
+    """Return the lab's named colour palette.
+
+    Parameters
+    ----------
+    normalize : bool
+        Scale RGB values from 0-255 to 0-1.
+    as_list : bool
+        Return a list of colours instead of a name->colour dict.
+    cat_trio : bool
+        Return only the three categorical colours (raspberry, blue, green).
+
+    Returns
+    -------
+    dict or list
+        Named colours, or a list of them if as_list.
+    """
     # color palette (RGB / HEX):
     # raspberry blush: rgba(234,86,81,255) / #ea5651
     # conch shell: rgba(238,186,169,255) / #eebaa9
@@ -56,6 +83,22 @@ def get_my_colors(normalize=True, as_list=False, cat_trio=False):
 
 
 def roi_to_vtx(roi_data, annot_file):
+    """Map per-ROI values onto surface vertices using a FreeSurfer annotation.
+
+    Parameters
+    ----------
+    roi_data : (n_rois,) array-like
+        Per-ROI values (ROI label i maps to roi_data[i - 1]; label 0 is medial wall).
+    annot_file : str
+        Path to the FreeSurfer .annot file.
+
+    Returns
+    -------
+    vtx_data : ndarray
+        Per-vertex values.
+    vtx_data_min, vtx_data_max : float
+        Min/max of the mapped values (both 0 if fewer than 2 unique values).
+    """
     labels, ctab, surf_names = nib.freesurfer.read_annot(annot_file)
     vtx_data = np.zeros(labels.shape)
 
@@ -80,6 +123,15 @@ def roi_to_vtx(roi_data, annot_file):
 
 
 def add_module_lines(modules, ax):
+    """Draw white boundary boxes around contiguous module blocks on a matrix axis.
+
+    Parameters
+    ----------
+    modules : pd.Series
+        Per-node module labels, in matrix order.
+    ax : matplotlib Axes
+        Axis showing the matrix to annotate.
+    """
 
     # get unqiue modules
     unique_modules = modules.unique()
@@ -559,6 +611,21 @@ def create_sydnor_sa_colormap():
 # deprecated functions. Maintained for historical purposes, but have been replaced by newer functions.
 ######################################################################################################################################################
 def get_p_val_string(p_val):
+    """Format a p-value as a matplotlib mathtext annotation (italic p = value).
+
+    Uses scientific notation with 2 significant figures for p < 0.05, else 3
+    decimal places.
+
+    Parameters
+    ----------
+    p_val : float
+        P-value to format.
+
+    Returns
+    -------
+    str
+        Mathtext p-value string for plot annotations.
+    """
     # if np.round(p_val, 3) == 0.000:
         # p_str = "-log10($\mathit{:}$)>25".format('{p}')
     if p_val < 0.05:

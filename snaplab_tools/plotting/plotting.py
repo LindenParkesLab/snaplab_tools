@@ -61,7 +61,7 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
     """
     Enhanced correlation plot with automatic polynomial model selection and data group coloring.
     
-    Parameters:
+    Parameters
     -----------
     x, y : array-like, pandas.Series, or numpy.ndarray
         Input variables to correlate. If pandas Series, their names will be used 
@@ -130,7 +130,7 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
           p = proportion of null >= observed; for negative correlations, p = proportion
           of null <= observed.
 
-    Returns:
+    Returns
     --------
     ax : matplotlib axis object
         The axis object with plot
@@ -524,7 +524,7 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
     """
     Plot comparison between two sets of measurements with optional marginals and statistics.
     
-    Parameters:
+    Parameters
     -----------
     x : array-like or pd.Series
         First set of measurements (e.g., rest correlations)
@@ -565,7 +565,7 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
     correlation_type : str
         Type of correlation to compute: 'pearson' or 'spearman' (default: 'pearson')
         
-    Returns:
+    Returns
     --------
     stats_dict : dict
         Dictionary containing computed statistics:
@@ -792,6 +792,27 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
 
 
 def null_plot(observed, null, xlabel, ax, p_val=None, add_text=True, line_color=None, use_kde=False):
+    """Plot a null distribution (histogram or KDE) with the observed value marked.
+
+    Parameters
+    ----------
+    observed : float
+        Observed statistic; drawn as a vertical line.
+    null : array-like
+        Null distribution values.
+    xlabel : str
+        X-axis label.
+    ax : matplotlib Axes
+        Axis to plot on.
+    p_val : float or None
+        If given, annotate the observed line with its p-value.
+    add_text : bool
+        Annotate the observed value (and p-value).
+    line_color : color or None
+        Colour of the observed line; defaults to the lab green.
+    use_kde : bool
+        Use a KDE instead of a histogram for the null.
+    """
     if line_color is None:
         my_colors = get_my_colors()
         line_color = my_colors['north_sea_green']
@@ -827,6 +848,32 @@ def null_plot(observed, null, xlabel, ax, p_val=None, add_text=True, line_color=
 
 
 def brain_scatter_plot(parcel_coords, node_data=None, edge_data=None, fig_height=1.25, vmin=None, vmax=None, cmap=None, add_colorbar=False, ax=None):
+    """Scatter brain parcels at their 2-D coordinates, optionally with edges and node colouring.
+
+    Parameters
+    ----------
+    parcel_coords : (n_nodes, 2) DataFrame
+        Per-parcel x/y coordinates.
+    node_data : (n_nodes,) ndarray or None
+        Values to colour nodes by; white if None. Signed data auto-symmetrises the limits.
+    edge_data : (n_nodes, n_nodes) ndarray or None
+        Adjacency matrix; nonzero entries are drawn as edges (thickness scaled by weight).
+    fig_height : float
+        Figure height in inches (width is 0.8x); also scales node size.
+    vmin, vmax : float or None
+        Colour limits for node_data.
+    cmap : str or None
+        Colormap for node_data.
+    add_colorbar : bool
+        Add a colorbar for node_data.
+    ax : matplotlib Axes or None
+        Axis to draw on; a new figure is created if None.
+
+    Returns
+    -------
+    matplotlib Figure
+        The figure containing the plot.
+    """
     n_nodes = parcel_coords.shape[0]
     fig_width = fig_height * 0.8
 
@@ -1057,7 +1104,7 @@ def plot_brain_surface_data(data_vector, parcellation='schaefer_400', surface='f
     """
     Plot brain data on cortical surface with lateral and medial views for both hemispheres.
 
-    Parameters:
+    Parameters
     -----------
     data_vector : array-like
         1D numpy array containing brain data values. Length should match the number of parcels
@@ -1100,14 +1147,14 @@ def plot_brain_surface_data(data_vector, parcellation='schaefer_400', surface='f
     fontsize : int, default 6
         Font size for all text elements in the figure
 
-    Returns:
+    Returns
     --------
     fig : matplotlib.figure.Figure
         The created figure object
     axes : list
         List of matplotlib axes objects for each subplot
 
-    Examples:
+    Examples
     ---------
     # Generate example data for 400-parcel Schaefer atlas
     example_data = np.random.randn(400)
@@ -1227,7 +1274,7 @@ def plot_brain_surface_data_single(data_vector, fig, subplotspec,
     creating its own figure. Suitable for embedding brain surface panels inside a larger
     multi-panel figure built with GridSpec.
 
-    Parameters:
+    Parameters
     -----------
     data_vector : array-like
         1D numpy array of brain data values matching the parcellation size.
@@ -1263,7 +1310,7 @@ def plot_brain_surface_data_single(data_vector, fig, subplotspec,
     fontsize : int, default 6
         Font size for colorbar text.
 
-    Returns:
+    Returns
     --------
     ax : matplotlib.axes.Axes
         The axes containing the embedded brain surface image.
@@ -1395,6 +1442,18 @@ def categorical_kde_plot(df, variable, category, fig_width=4, fig_height=1.5, ca
 
 
 def _format_axis(ax, category, horizontal=False, keep_variable_axis=True):
+    """Style a categorical KDE sub-axis: hide spines and label the category axis.
+
+    Parameters
+    ----------
+    ax : matplotlib Axes
+    category : str
+        Category label placed on the categorical axis.
+    horizontal : bool
+        Orient the category on the y-axis (else the x-axis).
+    keep_variable_axis : bool
+        Keep the variable (non-category) axis visible.
+    """
 
     # Remove the axis lines
     ax.spines["top"].set_visible(False)
@@ -1420,6 +1479,23 @@ def _format_axis(ax, category, horizontal=False, keep_variable_axis=True):
 
 
 def paired_line_plot(x, y_1, y_2, y_1_label, y_2_label, ax, add_summary_line='mean', plot_diff=False):
+    """Plot two families of lines over x with a mean/median summary, or their difference.
+
+    Parameters
+    ----------
+    x : array-like
+        Shared x values.
+    y_1, y_2 : (n_x, n_series) ndarray
+        Two families of series (faint individual lines plus a bold summary line).
+    y_1_label, y_2_label : str
+        Legend labels.
+    ax : matplotlib Axes
+        Axis to plot on.
+    add_summary_line : {'mean', 'median'} or other
+        Summary line to overlay on each family (any other value skips the summary).
+    plot_diff : bool
+        Plot y_2 - y_1 instead of the two families separately.
+    """
     my_colors = get_my_colors(cat_trio=True, as_list=True)
 
     # y_1 = y_1.mean(axis=0).mean(axis=0)
@@ -1458,6 +1534,33 @@ def paired_line_plot(x, y_1, y_2, y_1_label, y_2_label, ax, add_summary_line='me
 # deprecated functions. Maintained for historical purposes, but have been replaced by newer functions.
 ######################################################################################################################################################
 def reg_plot(x, y, ax, xlabel='X', ylabel='Y', c='gray', annotate='pearson', add_pval=True, regr_line=True, kde=True, fontsize=8, order=1):
+    """Scatter of x vs y with an optional KDE, regression line, and r/rho annotation.
+
+    NaNs are dropped pairwise; square matrices have their diagonal excluded.
+
+    Parameters
+    ----------
+    x, y : array-like
+        Variables to plot (1-D, or square matrices whose off-diagonal entries are used).
+    ax : matplotlib Axes
+        Axis to plot on.
+    xlabel, ylabel : str
+        Axis labels.
+    c : color or array-like
+        Point colour, or per-point values for a viridis mapping.
+    annotate : {'pearson', 'spearman', 'both'}, tuple, or None
+        Which correlation to annotate; a (coef, p) tuple annotates a custom stat.
+    add_pval : bool
+        Include the p-value in the annotation.
+    regr_line : bool
+        Overlay a seaborn regression line of the given order.
+    kde : bool
+        Overlay a 2-D KDE.
+    fontsize : int
+        Annotation font size.
+    order : int
+        Polynomial order of the regression line.
+    """
     
     if isinstance(x, pd.Series):
         x = x.values
@@ -1560,6 +1663,25 @@ def reg_plot(x, y, ax, xlabel='X', ylabel='Y', c='gray', annotate='pearson', add
 def surface_plot(data, lh_annot_file, rh_annot_file,
                  fsaverage=datasets.fetch_surf_fsaverage(mesh='fsaverage5'),
                  order='lr', cmap='viridis', cblim=None, title_str=None):
+    """Plot parcellated data on the cortical surface (lateral + medial, both hemispheres).
+
+    Parameters
+    ----------
+    data : (n_parcels,) array-like
+        Parcel values; the two halves map to the hemispheres per `order`.
+    lh_annot_file, rh_annot_file : str
+        FreeSurfer annotation files for the left/right hemispheres.
+    fsaverage : dict
+        nilearn fsaverage surface meshes (defaults to fsaverage5).
+    order : {'lr', 'rl'}
+        Whether the first half of `data` is the left or right hemisphere.
+    cmap : str
+        Colormap; diverging maps (coolwarm/vlag/icefire) auto-symmetrise the limits.
+    cblim : tuple or None
+        (vmax, vmin) colour limits; derived from the data if None.
+    title_str : str or None
+        Figure title.
+    """
 
     # project data to surface
     n_nodes = len(data)
