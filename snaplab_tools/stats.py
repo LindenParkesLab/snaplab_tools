@@ -4,6 +4,7 @@ import scipy as sp
 from scipy import stats
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
+import statsmodels.api as sm
 
 
 def steiger_test(r_xy, r_xz, r_yz, n, alternative='two-sided'):
@@ -319,3 +320,44 @@ def correlate_dataframes(df_neuro, df_ints, method='pearson', alpha=0.05,
     df_results = pd.DataFrame(results, index=df_neuro.columns, columns=df_ints.columns)
     df_pvals   = pd.DataFrame(pvals,   index=df_neuro.columns, columns=df_ints.columns)
     return df_results, df_pvals
+
+
+def partial_corr_controlled(df, predictor, outcome, covars):
+    """Covariate-controlled partial correlation between a predictor and an outcome.
+
+    Rows missing any of ``predictor``/``outcome``/``covars`` are dropped, then both the
+    predictor and the outcome are residualized on the covariates (OLS, intercept included)
+    and the Pearson correlation of the residuals is returned. The two-tailed p-value is taken
+    from the predictor's coefficient in the OLS fit ``outcome ~ predictor + covars`` (so it
+    carries the correct residual degrees of freedom). A one-tailed p-value for a pre-specified
+    positive direction is also returned.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Data containing ``predictor``, ``outcome``, and every name in ``covars``.
+    predictor : str
+        Column correlated with ``outcome`` after controlling for ``covars``.
+    outcome : str
+        Outcome column.
+    covars : list of str
+        Covariate columns partialled out of both predictor and outcome.
+
+    Returns
+    -------
+    dict
+        With keys ``r`` (residual Pearson r), ``p_two`` (two-tailed p from the OLS coefficient),
+        ``p_one_pos`` (one-tailed p for the positive hypothesis), ``n`` (rows used), and
+        ``resid_x``/``resid_y`` (the covariate residuals of predictor and outcome).
+    """
+    d = df[[predictor, outcome] + covars].dropna()
+    n = len(d)
+    Xc = sm.add_constant(d[covars])
+    rx = sm.OLS(d[predictor], Xc).fit().resid
+    ry = sm.OLS(d[outcome],   Xc).fit().resid
+    r  = sp.stats.pearsonr(rx.values, ry.values)[0]
+    fit = sm.OLS(d[outcome], sm.add_constant(d[[predictor] + covars])).fit()
+    p_two = fit.pvalues[predictor]
+    p_one_pos = p_two / 2 if r > 0 else 1 - p_two / 2   # one-tailed, hypothesis = positive
+    return dict(r=r, p_two=p_two, p_one_pos=p_one_pos, n=n,
+                resid_x=rx.values, resid_y=ry.values)
