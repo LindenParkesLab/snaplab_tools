@@ -451,6 +451,81 @@ def paired_ttest_vs_reference(df, reference=None, columns=None,
     return out
 
 
+def subject_wise_coupling(brain_maps, reference_map, method='spearman'):
+    """Per-subject correlation between each subject's brain map and a reference map.
+
+    Parameters
+    ----------
+    brain_maps : ndarray, shape (n_subjects, n_regions)
+        Per-subject, per-region brain maps.
+    reference_map : ndarray, shape (n_regions,)
+        Region-wise reference map correlated against within each subject.
+    method : {'spearman', 'pearson'}, default='spearman'
+        Correlation used.
+
+    Returns
+    -------
+    ndarray, shape (n_subjects,)
+        Per-subject correlation. Regions with a NaN in the map or the reference are
+        excluded per subject; a subject with fewer than 2 usable regions yields NaN.
+    """
+    try:
+        corr_func = {'spearman': sp.stats.spearmanr, 'pearson': sp.stats.pearsonr}[method]
+    except KeyError:
+        raise ValueError("method must be 'spearman' or 'pearson'")
+
+    brain_maps    = np.asarray(brain_maps,    dtype=float)
+    reference_map = np.asarray(reference_map, dtype=float)
+    if brain_maps.ndim != 2:
+        raise ValueError("brain_maps must be 2-D (subjects x regions)")
+    if brain_maps.shape[1] != reference_map.shape[0]:
+        raise ValueError("region axis of brain_maps must match len(reference_map)")
+
+    rho = np.empty(brain_maps.shape[0])
+    for i in range(brain_maps.shape[0]):
+        m = ~(np.isnan(brain_maps[i]) | np.isnan(reference_map))
+        rho[i] = corr_func(brain_maps[i][m], reference_map[m]).statistic if m.sum() >= 2 else np.nan
+    return rho
+
+
+def paired_coupling_test(coupling_a, coupling_b, alternative='greater'):
+    """Paired Fisher-z t-test comparing two sets of per-subject couplings.
+
+    Given per-subject correlations (e.g. from ``subject_wise_coupling``) measured in
+    two conditions on the same subjects, Fisher z-transform them and run a paired
+    t-test. Subjects whose coupling is undefined (NaN, or +/-1 -> +/-inf z) in either
+    condition are dropped. Use this when the couplings are already computed and you
+    do not want to recompute them from the maps (see ``decoupling_test``).
+
+    Parameters
+    ----------
+    coupling_a, coupling_b : ndarray, shape (n_subjects,)
+        Per-subject couplings in the two conditions (same subjects, same order).
+    alternative : {'greater', 'less', 'two-sided'}, default='greater'
+        Passed to ``scipy.stats.ttest_rel`` on (z_a - z_b). 'greater' tests
+        condition-A coupling > condition-B coupling (decoupling in B).
+
+    Returns
+    -------
+    rho_a, rho_b : float
+        Mean coupling in each condition over the paired subjects used.
+    t, p : float
+        Paired-samples t statistic and p-value on the Fisher-z couplings.
+    n : int
+        Number of paired subjects used (after dropping undefined couplings).
+    """
+    coupling_a = np.asarray(coupling_a, dtype=float)
+    coupling_b = np.asarray(coupling_b, dtype=float)
+    if coupling_a.shape != coupling_b.shape:
+        raise ValueError("coupling_a and coupling_b must have the same shape")
+
+    z_a, z_b = np.arctanh(coupling_a), np.arctanh(coupling_b)   # Fisher z
+    good = np.isfinite(z_a) & np.isfinite(z_b)
+    res = sp.stats.ttest_rel(z_a[good], z_b[good], alternative=alternative)
+    return (float(coupling_a[good].mean()), float(coupling_b[good].mean()),
+            float(res.statistic), float(res.pvalue), int(good.sum()))
+
+
 def decoupling_test(brain_maps_a, brain_maps_b, reference_map,
                     alternative='greater', method='spearman'):
     """Paired test of whether per-subject brain maps' coupling to a reference weakens.
@@ -497,38 +572,12 @@ def decoupling_test(brain_maps_a, brain_maps_b, reference_map,
         Number of paired subjects contributing to the test (after dropping any with
         an undefined coupling in either condition).
     """
-    try:
-        corr_func = {'spearman': sp.stats.spearmanr, 'pearson': sp.stats.pearsonr}[method]
-    except KeyError:
-        raise ValueError("method must be 'spearman' or 'pearson'")
-
-    brain_maps_a  = np.asarray(brain_maps_a,  dtype=float)
-    brain_maps_b  = np.asarray(brain_maps_b,  dtype=float)
-    reference_map = np.asarray(reference_map, dtype=float)
+    brain_maps_a = np.asarray(brain_maps_a, dtype=float)
+    brain_maps_b = np.asarray(brain_maps_b, dtype=float)
     if brain_maps_a.shape != brain_maps_b.shape:
         raise ValueError("brain_maps_a and brain_maps_b must have the same shape (subjects x regions)")
-    if brain_maps_a.shape[1] != reference_map.shape[0]:
-        raise ValueError("region axis of brain maps must match len(reference_map)")
 
-    # Keep subjects with usable (not all-NaN) maps in BOTH conditions.
-    keep = ~(np.isnan(brain_maps_a).all(axis=1) | np.isnan(brain_maps_b).all(axis=1))
-    brain_maps_a, brain_maps_b = brain_maps_a[keep], brain_maps_b[keep]
-    n_sub = brain_maps_a.shape[0]
-
-    def _couplings(maps):
-        rho = np.empty(n_sub)
-        for i in range(n_sub):
-            m = ~(np.isnan(maps[i]) | np.isnan(reference_map))
-            rho[i] = corr_func(maps[i][m], reference_map[m]).statistic if m.sum() >= 2 else np.nan
-        return rho
-
-    rho_a = _couplings(brain_maps_a)
-    rho_b = _couplings(brain_maps_b)
-    z_a, z_b = np.arctanh(rho_a), np.arctanh(rho_b)   # Fisher z
-
-    # Drop subjects whose coupling is undefined in either condition (e.g. a constant
-    # map -> NaN rho, or rho = +/-1 -> +/-inf z), which would poison the t-test.
-    good = np.isfinite(z_a) & np.isfinite(z_b)
-    res = sp.stats.ttest_rel(z_a[good], z_b[good], alternative=alternative)
-    return (float(rho_a[good].mean()), float(rho_b[good].mean()),
-            float(res.statistic), float(res.pvalue), int(good.sum()))
+    rho_a = subject_wise_coupling(brain_maps_a, reference_map, method=method)
+    rho_b = subject_wise_coupling(brain_maps_b, reference_map, method=method)
+    # Subjects with an undefined coupling in either condition are dropped by the test.
+    return paired_coupling_test(rho_a, rho_b, alternative=alternative)
