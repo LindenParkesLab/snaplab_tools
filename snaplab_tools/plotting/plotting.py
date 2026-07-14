@@ -1745,4 +1745,68 @@ def surface_plot(data, lh_annot_file, rh_annot_file,
         f.suptitle(title_str)
     plotting.show()
 
+
+def annotate_significance_brackets(ax, pairs, labels, y0=None, y_step=None,
+                                   tick_frac=0.02, text_pad_frac=0.0,
+                                   line_width=0.8, color='black', fontsize=7,
+                                   expand_ylim=True):
+    """Draw stacked significance brackets between pairs of categorical x-positions.
+
+    Each bracket is a flat-topped line spanning two x-positions with a label
+    (e.g. '***', 'ns') centered above it. Brackets are stacked bottom-to-top in
+    the order given, so pass them shortest-span-first to avoid overlap.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Target axes with a categorical x-axis (integer positions 0..n-1, as
+        produced by seaborn violin/box plots).
+    pairs : sequence of (float, float)
+        (x1, x2) index positions to connect, one per bracket.
+    labels : sequence of str
+        Text centered above each bracket; same length and order as ``pairs``.
+    y0 : float or None
+        Data-y of the lowest bracket. Defaults to the current top ylim, which
+        already clears any data/annotations drawn so far.
+    y_step : float or None
+        Vertical gap (data units) between successive brackets. Defaults to 8% of
+        the current y-range.
+    tick_frac : float, default=0.02
+        Length of the downward end-ticks, as a fraction of the y-range.
+    text_pad_frac : float, default=0.005
+        Gap between a bracket line and its label, as a fraction of the y-range.
+    line_width, color, fontsize : styling of the brackets and labels.
+    expand_ylim : bool, default=True
+        Raise the top ylim so the tallest bracket and its label fit.
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+    """
+    if len(pairs) != len(labels):
+        raise ValueError("`pairs` and `labels` must have the same length")
+
+    ymin, ymax = ax.get_ylim()
+    yr = ymax - ymin
+    if y0 is None:
+        y0 = ymax
+    if y_step is None:
+        y_step = 0.08 * yr
+    tick = tick_frac * yr
+
+    top = y0
+    for k, ((x1, x2), label) in enumerate(zip(pairs, labels)):
+        y = y0 + k * y_step
+        ax.plot([x1, x1, x2, x2], [y - tick, y, y, y - tick],
+                lw=line_width, color=color, clip_on=False)
+        ax.text((x1 + x2) / 2, y + text_pad_frac * yr, label,
+                ha='center', va='bottom', color=color, fontsize=fontsize,
+                clip_on=False)
+        top = y
+
+    if expand_ylim:
+        ax.set_ylim(ymin, max(ymax, top + 0.05 * yr))
+
+    return ax
+
     return f

@@ -5,6 +5,20 @@ from scipy import stats
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 import statsmodels.api as sm
+from statsmodels.stats.multitest import multipletests
+
+
+def significance_stars(p_value):
+    """Convert a p-value to a stars/ns string ('***' <.001, '**' <.01, '*' <.05, 'ns')."""
+    if p_value is None or np.isnan(p_value):
+        return 'ns'
+    if p_value < 0.001:
+        return '***'
+    if p_value < 0.01:
+        return '**'
+    if p_value < 0.05:
+        return '*'
+    return 'ns'
 
 
 def steiger_test(r_xy, r_xz, r_yz, n, alternative='two-sided'):
@@ -361,3 +375,77 @@ def partial_corr_controlled(df, predictor, outcome, covars):
     p_one_pos = p_two / 2 if r > 0 else 1 - p_two / 2   # one-tailed, hypothesis = positive
     return dict(r=r, p_two=p_two, p_one_pos=p_one_pos, n=n,
                 resid_x=rx.values, resid_y=ry.values)
+
+
+def paired_ttest_vs_reference(df, reference=None, columns=None,
+                              alternative='two-sided', correction='fdr_bh'):
+    """Paired-samples t-tests of each condition column against a reference column.
+
+    Each row is one paired observation (e.g. a brain region); each column is a
+    condition measured on those same observations. For every non-reference column
+    a paired t-test (``scipy.stats.ttest_rel``) against the reference is computed
+    on the rows where both values are non-NaN, and the p-values are optionally
+    corrected across the set of comparisons.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Observations (rows) x conditions (columns). Non-numeric columns that are
+        neither the reference nor requested in ``columns`` are ignored.
+    reference : hashable or None
+        Column every other column is compared against. Defaults to the first column.
+    columns : list or None
+        Conditions to test against the reference, in the desired output order.
+        Defaults to all columns except the reference, in dataframe order.
+    alternative : {'two-sided', 'less', 'greater'}, default='two-sided'
+        Passed to ``scipy.stats.ttest_rel``; the direction refers to
+        ``column - reference`` (so 'less' tests column < reference).
+    correction : {'holm', 'bonferroni', 'fdr_bh', ...} or None, default='fdr_bh'
+        Multiple-comparison correction applied across the tested columns via
+        ``statsmodels.stats.multitest.multipletests``. None leaves p uncorrected.
+
+    Returns
+    -------
+    pandas.DataFrame
+        One row per tested column (indexed by column name), with columns:
+        ``n`` (paired observations used), ``dof``, ``mean_diff``
+        (mean of column - reference), ``t``, ``p`` (uncorrected),
+        ``p_corr`` (corrected, equal to ``p`` when correction is None), and
+        ``sig`` (stars/ns string based on ``p_corr``).
+    """
+    if reference is None:
+        reference = df.columns[0]
+    if reference not in df.columns:
+        raise ValueError(f"reference column {reference!r} not in dataframe")
+    if columns is None:
+        columns = [c for c in df.columns if c != reference]
+    if reference in columns:
+        raise ValueError("reference column must not appear in `columns`")
+
+    ref = df[reference]
+    records = []
+    for col in columns:
+        mask = ~(ref.isna() | df[col].isna())
+        a = df.loc[mask, col].to_numpy(dtype=float)
+        b = ref.loc[mask].to_numpy(dtype=float)
+        n = int(mask.sum())
+        if n < 2:
+            records.append(dict(condition=col, n=n, dof=np.nan,
+                                mean_diff=np.nan, t=np.nan, p=np.nan))
+            continue
+        t, p = stats.ttest_rel(a, b, alternative=alternative)
+        records.append(dict(condition=col, n=n, dof=n - 1,
+                            mean_diff=float(np.mean(a - b)), t=float(t), p=float(p)))
+
+    out = pd.DataFrame(records).set_index('condition')
+
+    # Correct across the valid (non-NaN) comparisons only.
+    out['p_corr'] = out['p']
+    valid = out['p'].notna()
+    if correction is not None and valid.any():
+        out.loc[valid, 'p_corr'] = multipletests(
+            out.loc[valid, 'p'].to_numpy(), method=correction,
+        )[1]
+
+    out['sig'] = out['p_corr'].apply(significance_stars)
+    return out
