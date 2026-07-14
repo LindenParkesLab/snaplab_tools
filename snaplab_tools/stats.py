@@ -449,3 +449,77 @@ def paired_ttest_vs_reference(df, reference=None, columns=None,
 
     out['sig'] = out['p_corr'].apply(significance_stars)
     return out
+
+
+def decoupling_test(brain_maps_a, brain_maps_b, reference_map, alternative='two-sided'):
+    """Paired test of whether per-subject brain maps' coupling to a reference weakens.
+
+    For each subject, the Spearman correlation between their per-region brain map
+    and a fixed region-wise reference map is computed in each of two conditions
+    (``brain_maps_a`` and ``brain_maps_b``). The per-subject correlations are
+    Fisher z-transformed and compared with a paired t-test, testing whether the
+    coupling to the reference differs between the two conditions. A positive t
+    means the coupling is stronger in condition A (i.e. it decouples in B).
+
+    (Motivating use case: brain_maps_* are per-subject intrinsic-timescale maps at
+    rest vs during a task, and reference_map is the sensorimotor-association axis.)
+
+    Subjects whose map is entirely NaN in either condition are dropped, and within
+    each subject regions with a NaN in the map or the reference are excluded from
+    that subject's correlation.
+
+    Parameters
+    ----------
+    brain_maps_a, brain_maps_b : ndarray, shape (n_subjects, n_regions)
+        Per-subject, per-region brain maps in the two conditions. Rows must be the
+        same subjects in the same order (a paired design).
+    reference_map : ndarray, shape (n_regions,)
+        Region-wise reference map correlated against within each subject.
+    alternative : {'two-sided', 'less', 'greater'}, default='two-sided'
+        Passed to ``scipy.stats.ttest_rel`` on (z_a - z_b); 'greater' tests
+        condition-A coupling > condition-B coupling (decoupling in B).
+
+    Returns
+    -------
+    rho_a : float
+        Mean per-subject Spearman coupling in condition A (over the paired subjects used).
+    rho_b : float
+        Mean per-subject Spearman coupling in condition B (same subjects).
+    t : float
+        Paired-samples t statistic on the Fisher-z coupling (A vs B).
+    p : float
+        Corresponding p-value.
+    n : int
+        Number of paired subjects contributing to the test (after dropping any with
+        an undefined coupling in either condition).
+    """
+    brain_maps_a  = np.asarray(brain_maps_a,  dtype=float)
+    brain_maps_b  = np.asarray(brain_maps_b,  dtype=float)
+    reference_map = np.asarray(reference_map, dtype=float)
+    if brain_maps_a.shape != brain_maps_b.shape:
+        raise ValueError("brain_maps_a and brain_maps_b must have the same shape (subjects x regions)")
+    if brain_maps_a.shape[1] != reference_map.shape[0]:
+        raise ValueError("region axis of brain maps must match len(reference_map)")
+
+    # Keep subjects with usable (not all-NaN) maps in BOTH conditions.
+    keep = ~(np.isnan(brain_maps_a).all(axis=1) | np.isnan(brain_maps_b).all(axis=1))
+    brain_maps_a, brain_maps_b = brain_maps_a[keep], brain_maps_b[keep]
+    n_sub = brain_maps_a.shape[0]
+
+    def _couplings(maps):
+        rho = np.empty(n_sub)
+        for i in range(n_sub):
+            m = ~(np.isnan(maps[i]) | np.isnan(reference_map))
+            rho[i] = sp.stats.spearmanr(maps[i][m], reference_map[m]).statistic
+        return rho
+
+    rho_a = _couplings(brain_maps_a)
+    rho_b = _couplings(brain_maps_b)
+    z_a, z_b = np.arctanh(rho_a), np.arctanh(rho_b)   # Fisher z
+
+    # Drop subjects whose coupling is undefined in either condition (e.g. a constant
+    # map -> NaN rho, or rho = +/-1 -> +/-inf z), which would poison the t-test.
+    good = np.isfinite(z_a) & np.isfinite(z_b)
+    res = sp.stats.ttest_rel(z_a[good], z_b[good], alternative=alternative)
+    return (float(rho_a[good].mean()), float(rho_b[good].mean()),
+            float(res.statistic), float(res.pvalue), int(good.sum()))
