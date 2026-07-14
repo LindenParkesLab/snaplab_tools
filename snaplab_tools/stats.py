@@ -451,15 +451,16 @@ def paired_ttest_vs_reference(df, reference=None, columns=None,
     return out
 
 
-def decoupling_test(brain_maps_a, brain_maps_b, reference_map, alternative='two-sided'):
+def decoupling_test(brain_maps_a, brain_maps_b, reference_map,
+                    alternative='greater', method='spearman'):
     """Paired test of whether per-subject brain maps' coupling to a reference weakens.
 
-    For each subject, the Spearman correlation between their per-region brain map
-    and a fixed region-wise reference map is computed in each of two conditions
-    (``brain_maps_a`` and ``brain_maps_b``). The per-subject correlations are
-    Fisher z-transformed and compared with a paired t-test, testing whether the
-    coupling to the reference differs between the two conditions. A positive t
-    means the coupling is stronger in condition A (i.e. it decouples in B).
+    For each subject, the correlation between their per-region brain map and a fixed
+    region-wise reference map is computed in each of two conditions (``brain_maps_a``
+    and ``brain_maps_b``). The per-subject correlations are Fisher z-transformed and
+    compared with a paired t-test, testing whether the coupling to the reference
+    differs between the two conditions. A positive t means the coupling is stronger
+    in condition A (i.e. it decouples in B).
 
     (Motivating use case: brain_maps_* are per-subject intrinsic-timescale maps at
     rest vs during a task, and reference_map is the sensorimotor-association axis.)
@@ -475,16 +476,19 @@ def decoupling_test(brain_maps_a, brain_maps_b, reference_map, alternative='two-
         same subjects in the same order (a paired design).
     reference_map : ndarray, shape (n_regions,)
         Region-wise reference map correlated against within each subject.
-    alternative : {'two-sided', 'less', 'greater'}, default='two-sided'
-        Passed to ``scipy.stats.ttest_rel`` on (z_a - z_b); 'greater' tests
-        condition-A coupling > condition-B coupling (decoupling in B).
+    alternative : {'greater', 'less', 'two-sided'}, default='greater'
+        Passed to ``scipy.stats.ttest_rel`` on (z_a - z_b). The default 'greater'
+        is the one-sided decoupling test: condition-A coupling > condition-B coupling
+        (i.e. coupling drops from A to B). Use 'two-sided' for a directionless test.
+    method : {'spearman', 'pearson'}, default='spearman'
+        Correlation between each subject's map and the reference.
 
     Returns
     -------
     rho_a : float
-        Mean per-subject Spearman coupling in condition A (over the paired subjects used).
+        Mean per-subject coupling in condition A (over the paired subjects used).
     rho_b : float
-        Mean per-subject Spearman coupling in condition B (same subjects).
+        Mean per-subject coupling in condition B (same subjects).
     t : float
         Paired-samples t statistic on the Fisher-z coupling (A vs B).
     p : float
@@ -493,6 +497,11 @@ def decoupling_test(brain_maps_a, brain_maps_b, reference_map, alternative='two-
         Number of paired subjects contributing to the test (after dropping any with
         an undefined coupling in either condition).
     """
+    try:
+        corr_func = {'spearman': sp.stats.spearmanr, 'pearson': sp.stats.pearsonr}[method]
+    except KeyError:
+        raise ValueError("method must be 'spearman' or 'pearson'")
+
     brain_maps_a  = np.asarray(brain_maps_a,  dtype=float)
     brain_maps_b  = np.asarray(brain_maps_b,  dtype=float)
     reference_map = np.asarray(reference_map, dtype=float)
@@ -510,7 +519,7 @@ def decoupling_test(brain_maps_a, brain_maps_b, reference_map, alternative='two-
         rho = np.empty(n_sub)
         for i in range(n_sub):
             m = ~(np.isnan(maps[i]) | np.isnan(reference_map))
-            rho[i] = sp.stats.spearmanr(maps[i][m], reference_map[m]).statistic
+            rho[i] = corr_func(maps[i][m], reference_map[m]).statistic if m.sum() >= 2 else np.nan
         return rho
 
     rho_a = _couplings(brain_maps_a)
