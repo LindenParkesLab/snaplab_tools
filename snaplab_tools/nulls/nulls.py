@@ -51,6 +51,11 @@ from statsmodels.stats.multitest import multipletests
 
 from .utils import get_null_p
 
+# residualize is a generic OLS utility, so it lives in snaplab_tools.stats. It is imported here
+# — and re-exported by snaplab_tools.nulls — so existing `from snaplab_tools.nulls import
+# residualize` call sites keep working against the single definition.
+from ..stats import residualize
+
 # --------------------------------------------------------------------------------------------
 # Resource resolution (bundled in snaplab_tools/nulls/resources)
 # --------------------------------------------------------------------------------------------
@@ -299,19 +304,6 @@ def generate_surrogates(
 # --------------------------------------------------------------------------------------------
 # Inference on top of surrogates
 # --------------------------------------------------------------------------------------------
-def residualize(y, covariates):
-    """OLS-residualize ``y`` on ``covariates`` (intercept always included). ``covariates`` is a
-    (n,) or (n, k) array, or None for intercept-only (mean-centering)."""
-    if covariates is None:
-        Z = np.ones((len(y), 1))
-    else:
-        C = np.asarray(covariates, float)
-        if C.ndim == 1:
-            C = C[:, None]
-        Z = np.column_stack([np.ones(len(y)), C])
-    return y - Z @ np.linalg.lstsq(Z, y, rcond=None)[0]
-
-
 def _corr(a, b, method):
     return sp.stats.spearmanr(a, b)[0] if method == "spearman" else sp.stats.pearsonr(a, b)[0]
 
@@ -422,7 +414,7 @@ def correlate_family(
 
 
 def network_enrichment(brain_map, systems, stage_surrogates):
-    """Per-system mean of a map tested against a BrainSMASH surrogate null.
+    """Per-system mean of a map tested against a spatial-autocorrelation-preserving null.
 
     The map is surrogated (pass ``stage_surrogates``); per-system means are recomputed per
     surrogate; the two-tailed p compares the observed mean's deviation from the null mean via
@@ -431,6 +423,8 @@ def network_enrichment(brain_map, systems, stage_surrogates):
     ``p_smash`` and the full per-surrogate system-mean vector (``null``).
     """
     systems = np.asarray(systems)
+    brain_map = np.asarray(brain_map, dtype=float)
+    stage_surrogates = np.asarray(stage_surrogates, dtype=float)
     rows, nulls = {}, {}
     for net in sorted(set(systems)):
         m = systems == net
@@ -448,7 +442,3 @@ def network_enrichment(brain_map, systems, stage_surrogates):
     df = pd.DataFrame(rows).T
     df["null"] = pd.Series(nulls)
     return df
-
-
-# Backwards-compatible alias (the enrichment is not Yeo-specific; ``systems`` is any label vector).
-yeo_network_enrichment = network_enrichment
