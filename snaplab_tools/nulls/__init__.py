@@ -10,7 +10,6 @@ from .nulls import (
     residualize,
     correlate_family,
     network_enrichment,
-    yeo_network_enrichment,
 )
 
 __all__ = [
@@ -23,5 +22,4 @@ __all__ = [
     "residualize",
     "correlate_family",
     "network_enrichment",
-    "yeo_network_enrichment",
 ]
