@@ -585,27 +585,157 @@ def style_correlation_axis(ax, x_label, y_label, title=None,
                   length=6, width=1.2, colors='black')
 
 
-def create_sydnor_sa_colormap():
-    """Create the Sydnor S-A colormap (orange sensorimotor pole -> white -> purple association).
+# =====================================================================================================
+# Custom colormaps (two hue poles + a neutral midpoint) + factories and a preview helper
+# =====================================================================================================
+# Every map is generated the same way, from a (low, mid, high) hex triple. The two hue poles keep an
+# OKLab dE >= 8 under deuteranope / protanope / tritanope simulation, so a diverging quantity's sign
+# stays readable for colorblind viewers; the midpoint is a neutral grey (a diverging map must never
+# place a hue at the midpoint). 'sydnor_sa' is the fixed S-A axis identity map (orange -> purple).
+_DIVERGING_PRESETS = {
+    # Ordered most colorblind-safe first (min CVD OKLab dE, ~x100; check any pair with cvd_min_delta_e).
+    'navy_gold':       ('#1A3A6B', '#EDEDED', '#C99700'),   # ~38 (dark-bg friendly)
+    'indigo_gold':     ('#3B4CC0', '#F7F7F7', '#E0A800'),   # ~35 (very robust)
+    'purple_orange':   ('#5E3C99', '#F7F7F7', '#E66101'),   # ~29
+    'sydnor_sa':       ('#FFA500', '#F7F7F7', '#8A2BE2'),   # ~28 (S-A axis identity map: orange -> purple)
+    'blue_orange':     ('#2166AC', '#F7F7F7', '#E08214'),   # ~27
+    'blue_vermillion': ('#0072B2', '#F7F7F7', '#D55E00'),   # ~22 (Okabe-Ito pair)
+    'blue_red':        ('#2166AC', '#F7F7F7', '#B2182B'),   # ~21
+    'blue_brown':      ('#2166AC', '#F7F7F7', '#8C510A'),   # ~21 (BrBG-style)
+    'blue_pink':       ('#4C72B0', '#F7F7F7', '#C51B7D'),   # ~10 (PiYG pink; CB floor)
+}
+1
 
-    Also registers it with matplotlib under the name 'sydnor_sa'.
+# Machado-2009 dichromacy simulation matrices (severity 1.0), applied to *linear* sRGB.
+_CVD_MATRICES = {
+    'protanopia':   [[0.152286, 1.052583, -0.204868], [0.114503, 0.786281, 0.099216], [-0.003882, -0.048116, 1.051998]],
+    'deuteranopia': [[0.367322, 0.860646, -0.227968], [0.280085, 0.672501, 0.047413], [-0.011820, 0.042940, 0.968881]],
+    'tritanopia':   [[1.255528, -0.076749, -0.178779], [-0.078411, 0.930809, 0.147602], [0.004733, 0.691367, 0.303900]],
+}
+
+
+def _srgb_to_linear(rgb):
+    c = np.asarray(rgb, float)
+    return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+
+
+def _linear_to_oklab(lin):
+    r, g, b = lin
+    l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b
+    m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b
+    s = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b
+    l_, m_, s_ = np.cbrt([l, m, s])
+    return np.array([0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
+                     1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
+                     0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_])
+
+
+def cvd_min_delta_e(color_a, color_b):
+    """Worst-case OKLab dE (x100) between two colors under colorblind simulation.
+
+    Simulates protanopia / deuteranopia / tritanopia (Machado 2009, full severity), converts each
+    simulated color to perceptually-uniform OKLab, and returns the *minimum* Euclidean distance
+    (x100) across the three -- the metric used to vet a diverging map's two poles. >= 8 means the
+    pair stays distinguishable for colorblind viewers (15-25 is comfortable, 30+ very robust).
+    Accepts any matplotlib color spec (hex, name, or RGB(A) tuple).
+
+    Example
+    -------
+    >>> cvd_min_delta_e('#2166AC', '#B2182B')   # blue_red poles
+    21.1
+    """
+    a = _srgb_to_linear(mcolors.to_rgb(color_a))
+    b = _srgb_to_linear(mcolors.to_rgb(color_b))
+    dists = []
+    for mx in _CVD_MATRICES.values():
+        mx = np.asarray(mx)
+        dists.append(100 * np.linalg.norm(_linear_to_oklab(np.clip(mx @ a, 0, 1)) -
+                                          _linear_to_oklab(np.clip(mx @ b, 0, 1))))
+    return float(min(dists))
+
+
+def _register_with_reverse(cmap, name):
+    """Register `cmap` under `name` and its reverse under `name + '_r'` (best-effort, idempotent).
+
+    Custom colormaps -- unlike matplotlib built-ins -- do not get an automatic '_r' variant, so we
+    register it explicitly, giving every custom map the same reversible `cmap='<name>_r'` convention.
+    """
+    for cm, nm in ((cmap, name), (cmap.reversed(), name + '_r')):
+        try:
+            plt.colormaps.register(cmap=cm, name=nm)
+        except Exception:
+            pass
+
+
+def make_diverging_cmap(name, low, mid, high, N=256, register=True):
+    """Build a diverging colormap from two hue poles and a neutral midpoint.
+
+    Parameters
+    ----------
+    name : str
+        Colormap name; registered with matplotlib when register=True so ``cmap=name`` works anywhere.
+    low, mid, high : str
+        Hex colors at positions 0.0 / 0.5 / 1.0. ``mid`` should be a neutral grey (no hue).
+    N : int
+        Number of quantization levels.
+    register : bool
+        Register the colormap under ``name`` (silently skipped if the name is already registered).
 
     Returns
     -------
     matplotlib.colors.LinearSegmentedColormap
-        The custom colormap.
     """
-    colors = [
-        (0.0, '#FFA500'),   # orange (sensorimotor pole, low rank)
-        (0.5, '#FFFFFF'),   # white (midpoint)
-        (1.0, '#8A2BE2'),   # purple (association pole, high rank)
-    ]
-    sydnor_sa = mcolors.LinearSegmentedColormap.from_list('sydnor_sa', colors, N=256)
-    try:
-        plt.colormaps.register(cmap=sydnor_sa, name='sydnor_sa')
-    except Exception:
-        pass
-    return sydnor_sa
+    cmap = mcolors.LinearSegmentedColormap.from_list(name, [(0.0, low), (0.5, mid), (1.0, high)], N=N)
+    if register:
+        _register_with_reverse(cmap, name)
+    return cmap
+
+
+def make_sequential_cmap(name, colors, N=256, register=True):
+    """Build a sequential colormap from an ordered list of colors (light -> dark for magnitude).
+
+    Parameters
+    ----------
+    name : str
+    colors : list
+        Hex strings (spread evenly over 0..1) or explicit (position, hex) tuples.
+    N, register : see make_diverging_cmap.
+
+    Returns
+    -------
+    matplotlib.colors.LinearSegmentedColormap
+    """
+    if colors and not isinstance(colors[0], (tuple, list)):
+        colors = list(zip(np.linspace(0, 1, len(colors)), colors))
+    cmap = mcolors.LinearSegmentedColormap.from_list(name, colors, N=N)
+    if register:
+        _register_with_reverse(cmap, name)
+    return cmap
+
+
+def register_custom_colormaps():
+    """Build + register every custom colormap in _DIVERGING_PRESETS (incl. the S-A axis map).
+
+    Idempotent -- safe to call at the top of a figure notebook. Returns {name: colormap}.
+    """
+    return {name: make_diverging_cmap(name, lo, mid, hi)
+            for name, (lo, mid, hi) in _DIVERGING_PRESETS.items()}
+
+
+def show_colormaps(names=None, figsize=None):
+    """Preview a horizontal gradient strip for each named colormap (default: all custom presets)."""
+    register_custom_colormaps()
+    names = list(names) if names is not None else list(_DIVERGING_PRESETS)
+    grad = np.linspace(0, 1, 256)[None, :]
+    fig, axes = plt.subplots(len(names), 1, figsize=figsize or (5, 0.35 * len(names) + 0.3))
+    axes = np.atleast_1d(axes)
+    for ax, nm in zip(axes, names):
+        ax.imshow(grad, aspect='auto', cmap=nm)
+        ax.set_yticks([])
+        ax.set_xticks([])
+        ax.set_ylabel(nm, rotation=0, ha='right', va='center', fontsize=8)
+    fig.subplots_adjust(left=0.32, hspace=0.5)
+    return fig
 
 ######################################################################################################################################################
 # deprecated functions. Maintained for historical purposes, but have been replaced by newer functions.
