@@ -23,14 +23,10 @@ Modules
     Time-series filtering, autocorrelation/functional-connectivity derivatives, NaN-safe PCA.
 :mod:`~snaplab_tools.brainmaps`
     Loaders for published cortical maps (cytoarchitecture, microstructure, tau, S-A axis).
-:mod:`~snaplab_tools.datasets`
-    Synthetic data on real Schaefer geometry -- powers the tutorials and makes a runnable
-    example possible without access to any particular dataset.
 :mod:`~snaplab_tools.utils`
     Parcellation fetching, parcel-wise averaging, winsorizing, FDR, nuisance regression.
 
-Documentation, including runnable tutorials for each of the above, lives at
-https://snaplab-tools.readthedocs.io.
+Documentation lives at https://snaplab-tools.readthedocs.io.
 """
 
 __version__ = "0.1.0"
