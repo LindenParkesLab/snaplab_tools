@@ -56,6 +56,18 @@ from .utils import get_null_p
 # residualize` call sites keep working against the single definition.
 from ..stats import residualize
 
+__all__ = [
+    'load_distance_matrix',
+    'build_geodesic_distance_matrix',
+    'generate_surrogates',
+    'corr_with_null',
+    'corr_with_covar_null',
+    'correlate_family',
+    'network_enrichment',
+    'residualize',
+    'WB_COMMAND',
+]
+
 # --------------------------------------------------------------------------------------------
 # Resource resolution (bundled in snaplab_tools/nulls/resources)
 # --------------------------------------------------------------------------------------------

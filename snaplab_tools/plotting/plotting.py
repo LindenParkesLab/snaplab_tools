@@ -1,3 +1,32 @@
+"""Figure functions for brain-map results.
+
+Most functions take an existing matplotlib ``ax`` and draw into it, so they compose into
+multi-panel figures rather than owning the figure themselves. Call
+:func:`snaplab_tools.plotting.utils.set_plotting_params` first to get consistent fonts and sizing.
+
+Correlation plots
+    :func:`plot_correlation` is the workhorse -- a scatter with a fit line and an annotated
+    coefficient, which can also colour points by category, fit and compare polynomial orders, and
+    embed an inset showing an empirical null. :func:`plot_correlation_unity` is the variant with
+    X=Y on the diagonal, for comparing two measurements of the same quantity.
+    :func:`reg_plot` is a lighter-weight alternative.
+
+Brain surfaces
+    :func:`plot_brain_surface_data` and :func:`plot_brain_surface_data_single` render parcellated
+    data on inflated cortical surfaces via ``surfplot`` (install the ``surface`` extra; imported
+    lazily, so the rest of this module works without it). :func:`surface_plot` is a
+    nilearn-only fallback that needs no VTK. :func:`brain_scatter_plot` draws nodes and edges in
+    anatomical coordinates.
+
+Distributions and comparisons
+    :func:`null_plot` overlays an observed statistic on its null distribution;
+    :func:`categorical_kde_plot` and :func:`paired_line_plot` compare groups or conditions;
+    :func:`annotate_significance_brackets` adds the significance brackets over them.
+
+Surface functions expect Schaefer FreeSurfer ``.annot`` files under the directory named by the
+``SCHAEFER_ANNOT_DIR`` environment variable (default ``~/Schaefer2018_LocalGlobal/...``);
+:func:`snaplab_tools.utils.load_schaefer_parc` will download them for you.
+"""
 import io
 import os, platform
 import numpy as np
@@ -30,9 +59,28 @@ from snaplab_tools.plotting.utils import get_p_val_string, roi_to_vtx, get_my_co
     compute_correlation, create_correlation_text, add_stats_annotation, create_null_inset, style_correlation_axis, \
         determine_significance, format_pvalue
 
+__all__ = [
+    'plot_correlation',
+    'plot_correlation_unity',
+    'reg_plot',
+    'null_plot',
+    'brain_scatter_plot',
+    'plot_brain_surface_data',
+    'plot_brain_surface_data_single',
+    'surface_plot',
+    'categorical_kde_plot',
+    'paired_line_plot',
+    'annotate_significance_brackets',
+    'YEO7_COLORS',
+]
 
-# Canonical Yeo 7-network colors (Yeo et al. 2011, JNPH).
-# Keys match the network name strings produced by load_supporting_data in notebook.py.
+
+#: Canonical Yeo 7-network colours (Yeo et al. 2011, *J. Neurophysiol.*), as RGB 0-1 tuples.
+#: Keys match the system names in Schaefer parcel labels, so they line up with
+#: :func:`snaplab_tools.datasets.schaefer_systems`.
+#:
+#: (Written as ``#:`` comments rather than a plain comment block: that is the form autodoc reads
+#: as documentation for module-level data. Without it, autodoc falls back to ``dict.__doc__``.)
 YEO7_COLORS = {
     'Vis':         (120/255, 18/255,  134/255),
     'SomMot':      ( 70/255, 130/255, 180/255),
@@ -120,6 +168,7 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
         statistics. Not compatible with auto_polynomial=True.
     custom_inset : dict, optional
         Dictionary containing custom inset parameters. Supported keys:
+
         - 'custom_pvalue' (float): Custom p-value to display. Overridden by the top-level
           custom_pvalue parameter if both are provided.
         - 'custom_null' (array-like): Array of null distribution values (e.g., from
@@ -996,9 +1045,17 @@ def _prepare_brain_surface_data(data_vector, parcellation, surface,
         'schaefer_400-17': (400, 17),
         'schaefer_200-17': (200, 17),
         'schaefer_100-17': (100, 17),
+        # Short forms without a network suffix default to the 7-network order. These are what
+        # plot_brain_surface_data's own default argument uses, so leaving them out made the
+        # function raise when called with defaults.
+        'schaefer_400':    (400, 7),
+        'schaefer_200':    (200, 7),
+        'schaefer_100':    (100, 7),
     }
     if parcellation not in _parcellation_map:
-        raise ValueError(f"Unsupported parcellation: {parcellation}")
+        raise ValueError(
+            f"Unsupported parcellation: {parcellation!r}. "
+            f"Expected one of {sorted(_parcellation_map)}")
     n_rois, yeo_networks = _parcellation_map[parcellation]
 
     if len(data_vector) != n_rois:
@@ -1110,7 +1167,9 @@ def plot_brain_surface_data(data_vector, parcellation='schaefer_400', surface='f
         1D numpy array containing brain data values. Length should match the number of parcels
         in the specified parcellation (e.g., 400 for Schaefer 400-parcel atlas).
     parcellation : str, default 'schaefer_400'
-        Parcellation scheme to use. Options: 'schaefer_400', 'schaefer_200', 'schaefer_100'
+        Parcellation scheme. One of 'schaefer_100', 'schaefer_200', 'schaefer_400' (which use the
+        7-network order), or an explicit '<name>-<networks>' form such as 'schaefer_400-17'.
+        Requires the matching FreeSurfer .annot files under ``SCHAEFER_ANNOT_DIR``.
     surface : str, default 'fsaverage5'
         Brain surface to use. Options: 'fsaverage5', 'fsaverage'
     cmap : str, default 'viridis'
@@ -1155,21 +1214,24 @@ def plot_brain_surface_data(data_vector, parcellation='schaefer_400', surface='f
         List of matplotlib axes objects for each subplot
 
     Examples
-    ---------
-    # Generate example data for 400-parcel Schaefer atlas
-    example_data = np.random.randn(400)
-    fig, axes = plot_brain_surface_data(example_data, title='Random Brain Data')
+    --------
+    A map on the 400-parcel Schaefer atlas:
 
-    # Plot with custom parameters
-    fig, axes = plot_brain_surface_data(
-        data_vector=my_brain_data,
-        parcellation='schaefer_400',
-        cmap='RdBu_r',
-        symmetric_cbar=True,
-        threshold=0.1,
-        title='Task-related Brain Activity',
-        show_stats=True  # Show statistics box
-    )
+    >>> from snaplab_tools.datasets import make_spatial_map
+    >>> brain_map = make_spatial_map(n_regions=400, seed=0)
+    >>> fig = plot_brain_surface_data(brain_map, title='Example map')
+
+    With a diverging colormap, symmetric limits, and small values hidden:
+
+    >>> fig = plot_brain_surface_data(
+    ...     brain_map,
+    ...     parcellation='schaefer_400',
+    ...     cmap='RdBu_r',
+    ...     symmetric_cbar=True,
+    ...     threshold=1.0,
+    ...     title='Thresholded map',
+    ...     show_stats=True,
+    ... )
     """
     surf_data_left, surf_data_right, vmin, vmax = _prepare_brain_surface_data(
         data_vector, parcellation, surface, data_mask, vmin, vmax, threshold, symmetric_cbar)
@@ -1661,7 +1723,7 @@ def reg_plot(x, y, ax, xlabel='X', ylabel='Y', c='gray', annotate='pearson', add
     
 
 def surface_plot(data, lh_annot_file, rh_annot_file,
-                 fsaverage=datasets.fetch_surf_fsaverage(mesh='fsaverage5'),
+                 fsaverage=None,
                  order='lr', cmap='viridis', cblim=None, title_str=None):
     """Plot parcellated data on the cortical surface (lateral + medial, both hemispheres).
 
@@ -1671,8 +1733,10 @@ def surface_plot(data, lh_annot_file, rh_annot_file,
         Parcel values; the two halves map to the hemispheres per `order`.
     lh_annot_file, rh_annot_file : str
         FreeSurfer annotation files for the left/right hemispheres.
-    fsaverage : dict
-        nilearn fsaverage surface meshes (defaults to fsaverage5).
+    fsaverage : dict or None
+        nilearn fsaverage surface meshes. When None (the default), fsaverage5 is
+        fetched on first use -- passing a pre-fetched dict avoids repeating the
+        download across calls.
     order : {'lr', 'rl'}
         Whether the first half of `data` is the left or right hemisphere.
     cmap : str
@@ -1682,6 +1746,10 @@ def surface_plot(data, lh_annot_file, rh_annot_file,
     title_str : str or None
         Figure title.
     """
+    # Fetched here rather than as a default argument: a default would run the download at
+    # import time, so merely importing this module would hit the network.
+    if fsaverage is None:
+        fsaverage = datasets.fetch_surf_fsaverage(mesh='fsaverage5')
 
     # project data to surface
     n_nodes = len(data)
@@ -1753,7 +1821,7 @@ def annotate_significance_brackets(ax, pairs, labels, y0=None, y_step=None,
     """Draw stacked significance brackets between pairs of categorical x-positions.
 
     Each bracket is a flat-topped line spanning two x-positions with a label
-    (e.g. '***', 'ns') centered above it. Brackets are stacked bottom-to-top in
+    (e.g. ``'***'``, ``'ns'``) centered above it. Brackets are stacked bottom-to-top in
     the order given, so pass them shortest-span-first to avoid overlap.
 
     Parameters

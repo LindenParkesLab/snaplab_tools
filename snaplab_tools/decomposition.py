@@ -1,7 +1,17 @@
+"""Dimensionality reduction that tolerates missing data.
+
+Plain ``sklearn.decomposition.PCA`` raises on NaNs, which is awkward for brain maps where whole
+parcels are routinely missing (sparse electrode coverage, failed registration, masked medial wall).
+:func:`pca_with_nan_handling` wraps it with two strategies -- drop the incomplete rows, or impute
+them from column medians -- and can put the NaNs back afterwards so the output still lines up with
+the parcellation you started from.
+"""
 import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.impute import SimpleImputer
 from scipy import stats
+
+__all__ = ['pca_with_nan_handling']
 
 
 def pca_with_nan_handling(data, n_components=None, standardize=False, 
@@ -32,8 +42,9 @@ def pca_with_nan_handling(data, n_components=None, standardize=False,
     -------
     results : dict
         Dictionary containing:
-        - 'scores': PC scores, shape (n_valid_samples, n_components) or 
-                    (n_samples, n_components) if return_full_shape=True or impute=True
+
+        - 'scores': PC scores, shape (n_valid_samples, n_components) or
+          (n_samples, n_components) if return_full_shape=True or impute=True
         - 'loadings': PC loadings (weights), shape (n_features, n_components)
         - 'explained_variance': Variance explained by each component
         - 'explained_variance_ratio': Proportion of variance explained

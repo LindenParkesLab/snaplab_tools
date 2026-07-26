@@ -11,6 +11,13 @@ from typing import Tuple, Optional, Union
 
 from snaplab_tools.utils import normalize_x
 
+__all__ = [
+    'threshold_adjacency',
+    'volume_normalize_adjacency',
+    'threshold_adjacency_consistency',
+    'get_norm_rc',
+]
+
 
 def threshold_adjacency(
     A: np.ndarray,

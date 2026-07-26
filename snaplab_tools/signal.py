@@ -1,6 +1,14 @@
-"""Signal-processing utilities."""
+"""Signal-processing utilities.
+
+Currently one function, :func:`apply_frequency_filter`, which applies a zero-phase Butterworth
+lowpass, highpass, or bandpass filter to parcellated time series. Filtering to the canonical
+resting-state band (roughly 0.01-0.1 Hz) before computing autocorrelation or functional
+connectivity in :mod:`snaplab_tools.derivs` is the usual reason to reach for it.
+"""
 import numpy as np
 from scipy.signal import butter, filtfilt
+
+__all__ = ['apply_frequency_filter']
 
 
 def apply_frequency_filter(data, sampling_freq, lowpass=None, highpass=None, order=2):

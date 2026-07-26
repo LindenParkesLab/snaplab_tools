@@ -1,7 +1,16 @@
+"""Derived measures computed from regional time series.
+
+Both functions here take a parcellated fMRI time series and reduce it to something you can
+correlate against other brain maps: :func:`compute_acf` gives the autocorrelation function of a
+single region (fit :func:`snaplab_tools.utils.exp_decay` to it to get an intrinsic timescale), and
+:func:`compute_fc` gives a Fisher-z functional connectivity matrix across regions.
+"""
 import numpy as np
 import scipy as sp
 from scipy import signal
 from statsmodels.tsa.stattools import acf
+
+__all__ = ['compute_acf', 'compute_fc']
 
 
 def compute_acf(ts, nlags=None):

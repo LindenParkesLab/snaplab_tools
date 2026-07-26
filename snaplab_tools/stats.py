@@ -1,3 +1,35 @@
+"""Correlation statistics, partial correlations, and tests on brain-map relationships.
+
+Four groups of functions, roughly in order of how specialised they are.
+
+Basic estimation
+    :func:`compute_stat` and :func:`partial_pearsonr` (the single partial-correlation estimator
+    used throughout), plus :func:`residualize` to remove covariates explicitly and
+    :func:`partial_corr_controlled` for the DataFrame-oriented case.
+
+Comparing two dependent correlations
+    When you want to know whether X correlates more strongly with Y than with Z, the two
+    correlations share a variable and are therefore not independent. :func:`steiger_test` gives
+    the analytic answer, :func:`bootstrap_correlation_test` and
+    :func:`permutation_correlation_test` the resampling ones. The resampling versions make fewer
+    distributional assumptions and are the safer default for skewed brain data.
+
+Many correlations at once
+    :func:`correlate_dataframes` correlates every column of one table against every column of
+    another and applies FDR correction across the grid.
+
+Subject-level brain-map coupling
+    :func:`subject_wise_coupling` reduces each subject's brain map to a single coupling value
+    against a reference map; :func:`paired_coupling_test` and :func:`decoupling_test` then test
+    whether coupling differs between conditions. :func:`paired_ttest_vs_reference` compares
+    several conditions against a common baseline.
+
+Small helpers: :func:`significance_stars` formats a p-value for a figure annotation.
+
+For spatial null models -- the right way to test a brain-map correlation, since parcels are not
+independent observations -- see :mod:`snaplab_tools.nulls` rather than the parametric p-values
+returned here.
+"""
 import numpy as np
 import pandas as pd
 import scipy as sp
@@ -6,6 +38,22 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 import statsmodels.api as sm
 from statsmodels.stats.multitest import multipletests
+
+__all__ = [
+    'significance_stars',
+    'compute_stat',
+    'residualize',
+    'partial_pearsonr',
+    'partial_corr_controlled',
+    'correlate_dataframes',
+    'steiger_test',
+    'bootstrap_correlation_test',
+    'permutation_correlation_test',
+    'paired_ttest_vs_reference',
+    'subject_wise_coupling',
+    'paired_coupling_test',
+    'decoupling_test',
+]
 
 
 def significance_stars(p_value):

@@ -1,3 +1,24 @@
+"""General-purpose helpers: parcellation fetching, parcel-wise averaging, and small numerics.
+
+Three loosely related groups of functions live here.
+
+Parcellations
+    :func:`load_schaefer_parc` and :func:`schaefer_ordering_mapper` download Schaefer2018
+    parcellation files from the Yeo lab's CBIG repository and cache them on disk;
+    :func:`get_schaefer_system_mask` selects a Yeo system by name.
+
+Parcel-wise averaging
+    :func:`get_parcelwise_average_nifti` and :func:`get_parcelwise_average_surface` reduce
+    volumetric or surface data to one value per parcel.
+
+Numerics
+    :func:`normalize_x`, :func:`exp_decay`, :func:`get_fdr_p`, :func:`winsorize`,
+    :func:`winsorize_iqr`, and :func:`nuis_reg` -- rescaling, curve fitting, multiple-comparison
+    correction, outlier handling, and nuisance regression.
+
+Note that the parcellation fetchers hit the network on first call. If you only need Schaefer
+centroids or geodesic distances, :mod:`snaplab_tools.nulls` ships those offline.
+"""
 import os, wget
 import numpy as np
 import pandas as pd
@@ -5,11 +26,56 @@ import nibabel as nib
 from statsmodels.stats import multitest
 from sklearn.linear_model import LinearRegression
 
+__all__ = [
+    'normalize_x',
+    'get_schaefer_system_mask',
+    'exp_decay',
+    'get_parcelwise_average_nifti',
+    'get_parcelwise_average_surface',
+    'load_schaefer_parc',
+    'schaefer_ordering_mapper',
+    'get_fdr_p',
+    'winsorize',
+    'winsorize_iqr',
+    'nuis_reg',
+]
+
+
 def normalize_x(x):
+    """Rescale an array to the unit interval via min-max normalization.
+
+    Parameters
+    ----------
+    x : array-like
+        Values to rescale. A constant array yields a divide-by-zero.
+
+    Returns
+    -------
+    ndarray
+        ``(x - min(x)) / (max(x) - min(x))``, so the output spans exactly [0, 1].
+    """
     return (x - np.min(x)) / (np.max(x) - np.min(x))
 
 
 def get_schaefer_system_mask(roi_names, system='Vis'):
+    """Boolean mask selecting the Schaefer parcels belonging to one Yeo system.
+
+    Matching is a plain substring test against each ROI name, so `system` must appear verbatim
+    in the Schaefer naming scheme (e.g. 'Vis', 'SomMot', 'DorsAttn', 'SalVentAttn', 'Limbic',
+    'Cont', 'Default' for the 7-network order).
+
+    Parameters
+    ----------
+    roi_names : sequence of str
+        Parcel names, in parcellation order (e.g. '7Networks_LH_Vis_1').
+    system : str
+        Substring identifying the system.
+
+    Returns
+    -------
+    (n_parcels,) ndarray of bool
+        True where the parcel name contains `system`.
+    """
     n_parcels = len(roi_names)
     system_mask = np.zeros((n_parcels,)).astype(bool)
     for roi in np.arange(n_parcels):
@@ -21,10 +87,46 @@ def get_schaefer_system_mask(roi_names, system='Vis'):
 
 # The exponential decay function
 def exp_decay(x, tau, init):
+    """Exponential decay ``init * exp(-x / tau)``.
+
+    Intended as the model function passed to a curve fitter (e.g. ``scipy.optimize.curve_fit``)
+    when estimating a decay timescale -- fitting it to an autocorrelation function recovers tau
+    as the intrinsic timescale.
+
+    Parameters
+    ----------
+    x : array-like
+        Points at which to evaluate (e.g. autocorrelation lags).
+    tau : float
+        Decay constant, in the same units as `x`. Larger tau decays more slowly.
+    init : float
+        Value at ``x = 0``.
+
+    Returns
+    -------
+    ndarray
+        The decay evaluated at `x`.
+    """
     return init*np.e**(-x/tau)
 
 
 def get_parcelwise_average_nifti(data_file, parc_file):
+    """Average volumetric data within each parcel of a NIfTI parcellation.
+
+    Parameters
+    ----------
+    data_file : str
+        Path to the data volume, '.nii' or '.nii.gz'.
+    parc_file : str
+        Path to the parcellation volume, in the same space and resolution as `data_file`.
+
+    Returns
+    -------
+    (n_labels,) ndarray
+        Mean of the data over each unique label in the parcellation, ordered by sorted label
+        value. Label 0 (background) is included, so you will usually want to drop the first
+        element.
+    """
     # load parcellation
     parc = nib.load(parc_file).get_fdata().squeeze()
     unique_labels = np.unique(parc)
@@ -45,6 +147,22 @@ def get_parcelwise_average_nifti(data_file, parc_file):
 
 
 def get_parcelwise_average_surface(data_file, annot_file):
+    """Average surface data within each parcel of a FreeSurfer annotation.
+
+    Parameters
+    ----------
+    data_file : str
+        Path to per-vertex data. Accepted extensions: '.gii' (first data array), '.mgh',
+        '.curv' (FreeSurfer morphometry), '.txt' (whitespace-delimited).
+    annot_file : str
+        FreeSurfer '.annot' file for the same hemisphere and surface as `data_file`.
+
+    Returns
+    -------
+    (n_labels,) ndarray
+        Mean of the data over each unique label, ordered by sorted label value. The medial
+        wall (label 0) is included, so you will usually want to drop the first element.
+    """
     # load parcellation
     labels, ctab, surf_names = nib.freesurfer.read_annot(annot_file)
     unique_labels = np.unique(labels)
@@ -72,6 +190,33 @@ def get_parcelwise_average_surface(data_file, annot_file):
 
 
 def load_schaefer_parc(n_parcels=200, order=17, annot='fsaverage', out_dir='~/schaefer_parc'):
+    """Download (and cache) a Schaefer2018 parcellation in volume, surface, and CIFTI form.
+
+    Files are fetched from the Yeo lab's CBIG GitHub repository into `out_dir` on first call and
+    reused thereafter, so only the first call needs network access.
+
+    Parameters
+    ----------
+    n_parcels : int
+        Parcellation resolution (100, 200, ..., 1000).
+    order : int
+        Yeo network order, 7 or 17.
+    annot : str
+        FreeSurfer surface for the annotation files, 'fsaverage' or 'fsaverage5'.
+    out_dir : str
+        Cache directory; '~' is expanded and the directory is created if absent.
+
+    Returns
+    -------
+    nifti_file : str
+        Path to the parcellation in MNI152 1mm volumetric space.
+    centroids : pandas.DataFrame
+        Parcel names and R/A/S centroid coordinates.
+    lh_annot_file, rh_annot_file : str
+        Paths to the left and right FreeSurfer annotation files.
+    hcp_file : str
+        Path to the '.dlabel.nii' CIFTI parcellation in fs_LR 32k space.
+    """
     # output dir
     out_dir = os.path.expanduser(out_dir)
     if os.path.exists(out_dir) == False:
@@ -119,7 +264,34 @@ def load_schaefer_parc(n_parcels=200, order=17, annot='fsaverage', out_dir='~/sc
 
 def schaefer_ordering_mapper(out_dir='~/schaefer_ordering_mapper',
                              n_parcels=400, input_order=17, output_order=7):
+    """Build an index map between the 7- and 17-network orderings of a Schaefer parcellation.
 
+    The two Yeo orderings cover the same parcels in a different sequence. Matching is done on
+    exact R/A/S centroid coordinates, which are identical across orderings at a given
+    resolution. Use ``mapped['mapped_indices']`` to reindex a data vector from `input_order`
+    into `output_order`::
+
+        mapping = schaefer_ordering_mapper(n_parcels=400, input_order=17, output_order=7)
+        data_7 = data_17[mapping['mapped_indices'].values]
+
+    Centroid files are downloaded to `out_dir` on first call, and the resulting map is written
+    there as a CSV.
+
+    Parameters
+    ----------
+    out_dir : str
+        Cache/output directory; '~' is expanded and the directory is created if absent.
+    n_parcels : int
+        Parcellation resolution, the same for both orderings.
+    input_order, output_order : int
+        Yeo network orders to map from and to (7 or 17).
+
+    Returns
+    -------
+    pandas.DataFrame
+        Indexed by output-order parcel, with columns 'input_roi', 'output_roi', and
+        'mapped_indices' (0-based positions into the input-order vector).
+    """
     # output dir
     out_dir = os.path.expanduser(out_dir)
     if os.path.exists(out_dir) == False:
@@ -168,6 +340,25 @@ def schaefer_ordering_mapper(out_dir='~/schaefer_ordering_mapper',
 
 
 def get_fdr_p(p_vals, alpha=0.05):
+    """Benjamini-Hochberg FDR correction that preserves the input shape.
+
+    A thin wrapper over ``statsmodels.stats.multitest.multipletests`` that flattens a 2D array
+    of p-values, corrects across all of them jointly, and reshapes the result -- convenient for
+    correcting a full correlation matrix or a region-by-variable grid in one call.
+
+    Parameters
+    ----------
+    p_vals : (n,) or (n, m) ndarray
+        Uncorrected p-values.
+    alpha : float
+        Family-wise target FDR. Only affects the rejection decision, which is discarded here;
+        the returned q-values are unaffected.
+
+    Returns
+    -------
+    ndarray
+        FDR-corrected p-values (q-values), same shape as `p_vals`.
+    """
     if p_vals.ndim == 2:
         do_reshape = True
         dims = p_vals.shape
@@ -260,6 +451,28 @@ def winsorize_iqr(vector, k=1.5, inplace=False):
 
 
 def nuis_reg(X, y, use_sklearn=False):
+    """Residualize `y` on nuisance covariates `X` by ordinary least squares.
+
+    Note that no intercept is added: if you want the mean removed, include a column of ones in
+    `X`. :func:`snaplab_tools.stats.residualize` is the higher-level alternative -- it adds an
+    intercept and handles NaNs.
+
+    Parameters
+    ----------
+    X : (n_obs, n_covariates) ndarray
+        Nuisance covariates.
+    y : (n_obs,) or (n_obs, n_targets) ndarray
+        Data to residualize.
+    use_sklearn : bool
+        Fit with ``sklearn.linear_model.LinearRegression`` (which does fit an intercept)
+        instead of the pseudo-inverse. Both 1D inputs are promoted to column vectors in this
+        branch, so the residuals come back 2D.
+
+    Returns
+    -------
+    ndarray
+        Residuals of `y` after removing the linear contribution of `X`.
+    """
     if use_sklearn:
         if X.ndim == 1:
             X = X[:, np.newaxis]

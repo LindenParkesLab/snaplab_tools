@@ -31,6 +31,20 @@ try:
 except ImportError:
     threadpool_limits = None
 
+__all__ = [
+    'fit_gam',
+    'fit_series',
+    'partial_r2_smooth',
+    'build_signal',
+    'integrate_derivative',
+    'segment_windows_at',
+    'detect_change_point',
+    'segmentation_costs',
+    'select_n_segments',
+    'bootstrap_gam_fits',
+    'SIGNALS',
+]
+
 # Signal options understood by build_signal / detect_change_point.
 SIGNALS = ('pred', 'deriv1', 'deriv2')
 
@@ -411,11 +425,12 @@ def detect_change_point(curves, x_grid, *, signal='deriv1', normalize='zscore',
     Returns
     -------
     dict
-        'location', 'index'   : the FIRST change point (x value and x_grid index),
-        'locations', 'indices': all detected change points (length n_bkps, ordered),
-        'var_explained'       : 1 - SS(all segments)/SS(1 segment) of the normalized signal,
-        'cost_curve'          : within-segment L2 SS per candidate split (x_grid-aligned; None
-                                unless the exact single-boundary backend ran).
+
+        - 'location', 'index': the FIRST change point (x value and x_grid index)
+        - 'locations', 'indices': all detected change points (length n_bkps, ordered)
+        - 'var_explained': 1 - SS(all segments)/SS(1 segment) of the normalized signal
+        - 'cost_curve': within-segment L2 SS per candidate split (x_grid-aligned; None
+          unless the exact single-boundary backend ran)
     """
     if n_bkps < 1:
         raise ValueError(f"n_bkps must be >= 1; got {n_bkps}")

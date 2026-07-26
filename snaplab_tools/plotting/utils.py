@@ -1,3 +1,30 @@
+"""Building blocks for the figures in :mod:`snaplab_tools.plotting.plotting`.
+
+Useful on their own, not just as internals.
+
+Style and colour
+    :func:`set_plotting_params` sets the lab's matplotlib defaults (8pt fonts, editable Type-42
+    PDF text, seaborn paper style) -- call it once at the top of a notebook.
+    :func:`get_my_colors` returns the named lab palette.
+
+Colormaps
+    :func:`make_diverging_cmap` and :func:`make_sequential_cmap` build and register matplotlib
+    colormaps (each with an automatic ``_r`` reverse); :func:`register_custom_colormaps` installs
+    the presets and :func:`show_colormaps` previews them. :func:`cvd_min_delta_e` measures the
+    smallest perceptual distance between two colours across simulated colour-vision deficiencies
+    -- use it to check a categorical palette stays distinguishable.
+
+Statistics annotation
+    :func:`compute_correlation`, :func:`create_correlation_text`, :func:`format_pvalue`,
+    :func:`get_p_val_string`, :func:`determine_significance`, and :func:`add_stats_annotation`
+    turn a pair of vectors into the annotated text block on a correlation plot;
+    :func:`create_null_inset` draws the embedded null distribution.
+
+Axis helpers
+    :func:`style_correlation_axis`, :func:`add_module_lines` (system boundaries on a matrix
+    plot), :func:`process_input_data` (shared input validation), and :func:`roi_to_vtx` (project
+    parcel values onto surface vertices).
+"""
 import os, platform
 import numpy as np
 import pandas as pd
@@ -10,6 +37,27 @@ import matplotlib.colors as mcolors
 from matplotlib.ticker import FormatStrFormatter
 from nilearn import datasets
 from nilearn import plotting
+
+__all__ = [
+    'set_plotting_params',
+    'get_my_colors',
+    'make_diverging_cmap',
+    'make_sequential_cmap',
+    'register_custom_colormaps',
+    'show_colormaps',
+    'cvd_min_delta_e',
+    'compute_correlation',
+    'create_correlation_text',
+    'format_pvalue',
+    'get_p_val_string',
+    'determine_significance',
+    'add_stats_annotation',
+    'create_null_inset',
+    'style_correlation_axis',
+    'add_module_lines',
+    'process_input_data',
+    'roi_to_vtx',
+]
 
 
 def set_plotting_params(format='png'):
