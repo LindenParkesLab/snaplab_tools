@@ -52,9 +52,10 @@ class Regression():
         Predictors.
     y : (n_obs,) ndarray
         Target.
-    c : (n_obs, n_covariates) ndarray or None
+    c : (n_obs, n_covariates) or (n_obs,) ndarray, or None
         Nuisance covariates. When given, `X` is residualized on `c` within each training fold
         and the fitted nuisance model is applied to the test fold. When None, the step is skipped.
+        A single covariate may be passed as a 1-D vector. Pass a numpy array, not a DataFrame.
     alg : {'linear', 'rr', 'lr', 'krr_lin', 'krr_rbf', 'svr_lin', 'svr_rbf'}
         Estimator: ordinary least squares, ridge, lasso, kernel ridge (linear/RBF), or support
         vector regression (linear/RBF). Default 'rr' (ridge).
@@ -366,8 +367,9 @@ def my_cross_val_score(X, y, c, my_cv, reg, scorer, runpca=False, secondary_scor
         Predictors.
     y : (n_obs,) ndarray
         Target.
-    c : (n_obs, n_covariates) ndarray or None
-        Nuisance covariates; None skips the residualization step.
+    c : (n_obs, n_covariates) or (n_obs,) ndarray, or None
+        Nuisance covariates; None skips the residualization step. A 1-D vector is promoted to a
+        column. If residualization fails it raises -- it is not silently skipped.
     my_cv : list of tuple of ndarray
         Fold indices, as returned by :func:`get_cv`.
     reg : estimator
@@ -391,6 +393,15 @@ def my_cross_val_score(X, y, c, my_cv, reg, scorer, runpca=False, secondary_scor
     accuracy = np.zeros(len(my_cv), )
     secondary_accuracy = np.zeros(len(my_cv), )
     secondary_accuracy[:] = np.nan
+
+    # Promote a single covariate passed as a 1-D vector to a column. StandardScaler and the
+    # nuisance regressor both require 2-D, and getting a 1-D array here used to mean the whole
+    # nuisance step raised and was silently swallowed -- so `c=df['age'].values` produced results
+    # with no nuisance control at all, indistinguishable from c=None.
+    if c is not None:
+        c = np.asarray(c)
+        if c.ndim == 1:
+            c = c[:, np.newaxis]
 
     # find number of PCs
     if type(runpca) == str:
@@ -421,14 +432,9 @@ def my_cross_val_score(X, y, c, my_cv, reg, scorer, runpca=False, secondary_scor
             X_train = X[tr]
             X_test = X[te]
 
-        try:
+        if c is not None:
             c_train = c[tr, :]
             c_test = c[te, :]
-        except IndexError:
-            c_train = c[tr]
-            c_test = c[te]
-        except TypeError:
-            pass
 
         y_train = y[tr]
         y_test = y[te]
@@ -439,7 +445,12 @@ def my_cross_val_score(X, y, c, my_cv, reg, scorer, runpca=False, secondary_scor
         X_train = sc.transform(X_train)
         X_test = sc.transform(X_test)
 
-        try:
+        # Residualize X on the covariates. Everything is fit on the training fold only and then
+        # applied to the test fold, so no test-set information leaks into the model.
+        # This block used to be wrapped in a bare `except: pass`, which meant any failure here --
+        # a shape mismatch, a singular fit, a 1-D covariate array -- silently produced results
+        # with no nuisance control rather than an error. Errors now propagate.
+        if c is not None:
             # standardize covariates
             sc = StandardScaler()
             sc.fit(c_train)
@@ -453,8 +464,6 @@ def my_cross_val_score(X, y, c, my_cv, reg, scorer, runpca=False, secondary_scor
             X_train = X_train - X_pred
             X_pred = nuis_reg.predict(c_test)
             X_test = X_test - X_pred
-        except:
-            pass
 
         if type(runpca) == str or type(runpca) == int:
             pca = PCA(n_components=n_components, svd_solver='full')
