@@ -64,7 +64,7 @@ def set_plotting_params(format='png'):
     """Set global matplotlib/seaborn parameters for publication figures.
 
     Sets Type-42 (editable) PDF/PS fonts, an 8pt base font size, the savefig format, and a seaborn
-    whitegrid/paper style.
+    white/paper style (no background grid).
 
     Type-42 fonts and ``svg.fonttype='none'`` are the settings that matter at submission time:
     they keep text as text rather than outlines, so figures stay editable in Illustrator and
@@ -85,10 +85,9 @@ def set_plotting_params(format='png'):
         import matplotlib, shutil
         shutil.rmtree(matplotlib.get_cachedir(), ignore_errors=True)
     """
-    # seaborn first: sns.set() rewrites rcParams wholesale, including font.size. Setting our own
-    # values before it meant the 8pt request was silently overwritten with seaborn's 'paper'
-    # default of 9.6pt, so the size documented above was never the size you got.
-    sns.set(style='whitegrid', context='paper', font_scale=1)
+    # seaborn first: set_theme() rewrites rcParams wholesale, including font.size, so the explicit
+    # values below have to come after it or they are silently discarded.
+    sns.set_theme(style='white', context='paper', font_scale=1)
 
     plt.rcParams['pdf.fonttype'] = 42
     plt.rcParams['ps.fonttype'] = 42

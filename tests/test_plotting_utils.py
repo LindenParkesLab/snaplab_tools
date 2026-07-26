@@ -14,14 +14,26 @@ from snaplab_tools.utils import get_parcelwise_average_nifti, get_parcelwise_ave
 
 
 def test_importing_plotting_does_not_enable_interactive_mode():
-    """A library import must not flip matplotlib into interactive mode process-wide."""
-    plt.ioff()
-    import importlib
+    """A library import must not flip matplotlib into interactive mode process-wide.
 
-    import snaplab_tools.plotting.plotting as module
+    Checked in a fresh interpreter: importlib.reload() would not tell us what a first import
+    does in a clean process, and reloading pollutes this one's warning state.
+    """
+    import subprocess
+    import sys
 
-    importlib.reload(module)
-    assert not plt.isinteractive()
+    result = subprocess.run(
+        [sys.executable, '-c',
+         'import matplotlib; matplotlib.use("Agg");'
+         'import matplotlib.pyplot as plt;'
+         'import snaplab_tools.plotting.plotting;'
+         'print(plt.isinteractive())'],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip().endswith('False'), (
+        f'importing the plotting module enabled interactive mode: {result.stdout!r}'
+    )
 
 
 def test_schaefer_annot_dir_is_read_at_call_time(monkeypatch):
@@ -51,7 +63,7 @@ def test_schaefer_annot_dir_falls_back_to_default(monkeypatch):
 def test_set_plotting_params_applies_the_documented_values():
     """The 8pt size is documented and explicitly requested, so it must survive.
 
-    seaborn's sns.set() rewrites rcParams wholesale; calling it after the explicit assignments
+    seaborn's set_theme() rewrites rcParams wholesale; calling it after the explicit assignments
     silently replaced 8pt with seaborn's 'paper' default of 9.6pt.
     """
     set_plotting_params(format='pdf')
