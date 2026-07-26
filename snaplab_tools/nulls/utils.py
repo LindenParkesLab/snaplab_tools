@@ -33,26 +33,44 @@ def get_null_p(observed, null, version='standard', abs=False):
     Returns
     -------
     float
-        The p-value, in [0, 1]. Note the minimum attainable value is ``1 / len(null)`` -- a p of
-        0 means "smaller than this null can resolve", so report it as ``p < 1/n_perms`` rather
-        than as zero.
+        The p-value, in [0, 1]. Note the minimum attainable value is ``1 / n`` over the finite
+        null entries -- a p of 0 means "smaller than this null can resolve", so report it as
+        ``p < 1/n_perms`` rather than as zero. Returns NaN if `observed` is not finite, or if the
+        null has no finite entries.
+
+    Notes
+    -----
+    Non-finite entries in `null` are dropped and the p-value is computed over what remains.
+    Surrogates whose statistic could not be computed carry no information about the null, so
+    counting them in the denominator would make the p-value anti-conservative.
 
     Examples
     --------
     >>> observed = 0.42
     >>> p = get_null_p(observed, null_distribution, abs=True)
     """
+    if version not in ('standard', 'smallest'):
+        raise ValueError(f"version must be 'standard' or 'smallest'; got {version!r}")
+
+    observed = float(observed)
+    null = np.asarray(null, dtype=float)
+
     if abs:
         observed = np.abs(observed)
         null = np.abs(null)
 
+    null = null[np.isfinite(null)]
+
+    # A NaN observed statistic (a constant input, an all-NaN region) should propagate as a NaN
+    # p-value rather than raise, so callers looping over regions get a result vector with holes
+    # instead of an exception part-way through.
+    if not np.isfinite(observed) or null.size == 0:
+        return np.nan
+
     if version == 'standard':
         if observed >= 0:
-            p_val = np.sum(null >= observed) / len(null)
-        elif observed <= 0:
-            p_val = np.sum(null <= observed) / len(null)
-    elif version == 'smallest':
-        p_val = np.min([np.sum(null >= observed) / len(null),
-                        np.sum(observed >= null) / len(null)])
+            return float(np.sum(null >= observed) / null.size)
+        return float(np.sum(null <= observed) / null.size)
 
-    return p_val
+    return float(np.min([np.sum(null >= observed) / null.size,
+                         np.sum(observed >= null) / null.size]))
