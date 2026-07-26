@@ -40,20 +40,30 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 from matplotlib.colors import Normalize, BoundaryNorm, ListedColormap
 from matplotlib.cm import ScalarMappable
-plt.ion()
 
-import nibabel as nib
+# Note: no plt.ion() here. Importing a module should not switch matplotlib into interactive mode
+# for the whole process -- that is the caller's decision, and it changes how plt.show() behaves
+# everywhere else in their session. Call plt.ion() yourself if you want it.
+
 from nilearn import datasets
 from nilearn import plotting
 from nilearn.surface import load_surf_data
 
-# Default location for Schaefer FreeSurfer annotation files.
-# Override with the SCHAEFER_ANNOT_DIR environment variable if the files
-# live somewhere else on your system.
-_SCHAEFER_ANNOT_DIR = os.environ.get(
-    'SCHAEFER_ANNOT_DIR',
-    os.path.expanduser('~/Schaefer2018_LocalGlobal/Parcellations/FreeSurfer5.3'),
-)
+# Default location for Schaefer FreeSurfer annotation files, used when the SCHAEFER_ANNOT_DIR
+# environment variable is not set.
+_DEFAULT_SCHAEFER_ANNOT_DIR = '~/Schaefer2018_LocalGlobal/Parcellations/FreeSurfer5.3'
+
+
+def _schaefer_annot_dir():
+    """Directory holding the Schaefer FreeSurfer .annot files.
+
+    Reads SCHAEFER_ANNOT_DIR on every call rather than caching it at import. Capturing it into a
+    module-level constant meant setting the variable after the first import silently had no
+    effect, which is a confusing way to lose an afternoon.
+    """
+    return os.path.expanduser(
+        os.environ.get('SCHAEFER_ANNOT_DIR', _DEFAULT_SCHAEFER_ANNOT_DIR)
+    )
 
 from snaplab_tools.plotting.utils import get_p_val_string, roi_to_vtx, get_my_colors, process_input_data, \
     compute_correlation, create_correlation_text, add_stats_annotation, create_null_inset, style_correlation_axis, \
@@ -76,8 +86,8 @@ __all__ = [
 
 
 #: Canonical Yeo 7-network colours (Yeo et al. 2011, *J. Neurophysiol.*), as RGB 0-1 tuples.
-#: Keys match the system names in Schaefer parcel labels, so they line up with
-#: :func:`snaplab_tools.datasets.schaefer_systems`.
+#: Keys match the system names embedded in Schaefer parcel labels (e.g. the 'Vis' in
+#: ``7Networks_LH_Vis_1``), so a system vector parsed from those labels indexes straight in.
 #:
 #: (Written as ``#:`` comments rather than a plain comment block: that is the form autodoc reads
 #: as documentation for module-level data. Without it, autodoc falls back to ``dict.__doc__``.)
@@ -1066,7 +1076,7 @@ def _prepare_brain_surface_data(data_vector, parcellation, surface,
     if surface not in ('fsaverage5', 'fsaverage'):
         raise ValueError(f"Unsupported surface: {surface}")
 
-    annot_dir = os.path.join(_SCHAEFER_ANNOT_DIR, surface, 'label')
+    annot_dir = os.path.join(_schaefer_annot_dir(), surface, 'label')
     net_str   = f'{yeo_networks}Networks'
     lh_annot  = os.path.join(annot_dir,
                               f'lh.Schaefer2018_{n_rois}Parcels_{net_str}_order.annot')
@@ -1215,10 +1225,10 @@ def plot_brain_surface_data(data_vector, parcellation='schaefer_400', surface='f
 
     Examples
     --------
-    A map on the 400-parcel Schaefer atlas:
+    A map on the 400-parcel Schaefer atlas, one value per parcel in 7-network order:
 
-    >>> from snaplab_tools.datasets import make_spatial_map
-    >>> brain_map = make_spatial_map(n_regions=400, seed=0)
+    >>> import numpy as np
+    >>> brain_map = np.random.randn(400)
     >>> fig = plot_brain_surface_data(brain_map, title='Example map')
 
     With a diverging colormap, symmetric limits, and small values hidden:

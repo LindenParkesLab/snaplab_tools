@@ -126,17 +126,28 @@ def get_parcelwise_average_nifti(data_file, parc_file):
         Mean of the data over each unique label in the parcellation, ordered by sorted label
         value. Label 0 (background) is included, so you will usually want to drop the first
         element.
+
+    Raises
+    ------
+    ValueError
+        If `data_file` does not have a recognised extension.
     """
+    # Validated up front, before any file is read: an unrecognised extension used to fall through
+    # and leave `data` undefined, so the failure surfaced as an UnboundLocalError several lines
+    # later -- after the parcellation had already been loaded.
+    file_name, file_extension = os.path.splitext(data_file)
+    if file_extension not in ('.nii', '.gz'):
+        raise ValueError(
+            f"Unsupported data file extension {file_extension!r} for {data_file!r}; "
+            f"expected '.nii' or '.nii.gz'."
+        )
+
     # load parcellation
     parc = nib.load(parc_file).get_fdata().squeeze()
     unique_labels = np.unique(parc)
 
-    file_name, file_extension = os.path.splitext(data_file)
-
-    # load gifti file
-    if file_extension == '.nii' or file_extension == '.gz':
-        data = nib.load(data_file)
-        data = data.get_fdata().squeeze()
+    data = nib.load(data_file)
+    data = data.get_fdata().squeeze()
 
     # mean over labels
     data_mean = []
@@ -162,14 +173,26 @@ def get_parcelwise_average_surface(data_file, annot_file):
     (n_labels,) ndarray
         Mean of the data over each unique label, ordered by sorted label value. The medial
         wall (label 0) is included, so you will usually want to drop the first element.
+
+    Raises
+    ------
+    ValueError
+        If `data_file` does not have a recognised extension.
     """
+    # Validated up front, before any file is read: an unrecognised extension used to fall through
+    # and leave `data` undefined, so the failure surfaced as an UnboundLocalError several lines
+    # later -- after the annotation had already been loaded.
+    file_name, file_extension = os.path.splitext(data_file)
+    if file_extension not in ('.gii', '.mgh', '.curv', '.txt'):
+        raise ValueError(
+            f"Unsupported data file extension {file_extension!r} for {data_file!r}; "
+            f"expected one of '.gii', '.mgh', '.curv', '.txt'."
+        )
+
     # load parcellation
     labels, ctab, surf_names = nib.freesurfer.read_annot(annot_file)
     unique_labels = np.unique(labels)
 
-    file_name, file_extension = os.path.splitext(data_file)
-
-    # load gifti file
     if file_extension == '.gii':
         data = nib.load(data_file)
         data = data.darrays[0].data
@@ -178,7 +201,7 @@ def get_parcelwise_average_surface(data_file, annot_file):
         data = data.get_fdata().squeeze()
     elif file_extension == '.curv':
         data = nib.freesurfer.io.read_morph_data(data_file)
-    elif file_extension == '.txt':
+    else:  # '.txt', the only remaining option after the check above
         data = np.loadtxt(data_file)
 
     # mean over labels
