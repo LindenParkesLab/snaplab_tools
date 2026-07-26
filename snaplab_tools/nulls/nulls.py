@@ -49,12 +49,9 @@ from tqdm import tqdm
 from brainsmash.mapgen.base import Base
 from statsmodels.stats.multitest import multipletests
 
-from .utils import get_null_p
-
-# residualize is a generic OLS utility, so it lives in snaplab_tools.stats. It is imported here
-# — and re-exported by snaplab_tools.nulls — so existing `from snaplab_tools.nulls import
-# residualize` call sites keep working against the single definition.
-from ..stats import residualize
+# get_null_p and residualize are generic statistics with nothing null-model-specific about them,
+# so they live in snaplab_tools.stats and are used from there.
+from ..stats import compute_stat, get_null_p, residualize
 
 __all__ = [
     'load_distance_matrix',
@@ -64,7 +61,6 @@ __all__ = [
     'corr_with_covar_null',
     'correlate_family',
     'network_enrichment',
-    'residualize',
     'WB_COMMAND',
 ]
 
@@ -317,7 +313,8 @@ def generate_surrogates(
 # Inference on top of surrogates
 # --------------------------------------------------------------------------------------------
 def _corr(a, b, method):
-    return sp.stats.spearmanr(a, b)[0] if method == "spearman" else sp.stats.pearsonr(a, b)[0]
+    """Correlation coefficient only, via stats.compute_stat so the n < 3 guard applies."""
+    return compute_stat(a, b, method, return_p=False)[0]
 
 
 def corr_with_covar_null(brain_map, target_map, covariates, target_surrogates, method="pearson",
@@ -330,7 +327,7 @@ def corr_with_covar_null(brain_map, target_map, covariates, target_surrogates, m
     where ``null`` is the full finite null vector.
 
     ``two_tailed`` (default True) tests the magnitude of the correlation (``|r|``); set False for a
-    one-tailed test in the observed effect's direction (``get_null_p(..., abs=False)``).
+    one-tailed test in the observed effect's direction (``get_null_p(..., alternative='auto')``).
     """
     brain_map = np.asarray(brain_map, float)
     target_map = np.asarray(target_map, float)
@@ -362,7 +359,7 @@ def corr_with_covar_null(brain_map, target_map, covariates, target_surrogates, m
     null = null[~np.isnan(null)]
     return {
         "r": obs,
-        "p_smash": get_null_p(obs, null, version="standard", abs=two_tailed),
+        "p_smash": get_null_p(obs, null, alternative="two-sided" if two_tailed else "auto"),
         "n": int(base_valid.sum()),
         "null_lo": float(np.nanpercentile(null, 2.5)),
         "null_hi": float(np.nanpercentile(null, 97.5)),
@@ -430,7 +427,7 @@ def network_enrichment(brain_map, systems, stage_surrogates):
 
     The map is surrogated (pass ``stage_surrogates``); per-system means are recomputed per
     surrogate; the two-tailed p compares the observed mean's deviation from the null mean via
-    ``get_null_p(abs=True)``. ``systems`` is any per-parcel label vector (e.g. Yeo-7 networks).
+    ``get_null_p(alternative='two-sided')``. ``systems`` is any per-parcel label vector (e.g. Yeo-7 networks).
     Returns a DataFrame indexed by system with observed mean, null mean, 95% null band,
     ``p_smash`` and the full per-surrogate system-mean vector (``null``).
     """
@@ -448,7 +445,7 @@ def network_enrichment(brain_map, systems, stage_surrogates):
             "null_mean": center,
             "null_lo": np.nanpercentile(null_vals, 2.5),
             "null_hi": np.nanpercentile(null_vals, 97.5),
-            "p_smash": get_null_p(obs - center, null_vals - center, version="standard", abs=True),
+            "p_smash": get_null_p(obs - center, null_vals - center, alternative="two-sided"),
         }
         nulls[net] = null_vals[np.isfinite(null_vals)]
     df = pd.DataFrame(rows).T

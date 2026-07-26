@@ -6,8 +6,6 @@ single region (fit :func:`snaplab_tools.utils.exp_decay` to it to get an intrins
 :func:`compute_fc` gives a Fisher-z functional connectivity matrix across regions.
 """
 import numpy as np
-import scipy as sp
-from scipy import signal
 from statsmodels.tsa.stattools import acf
 
 __all__ = ['compute_acf', 'compute_fc']

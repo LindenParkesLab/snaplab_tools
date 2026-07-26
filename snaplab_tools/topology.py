@@ -7,7 +7,7 @@ thresholding, normalization, and rich club analysis.
 
 import numpy as np
 import bct
-from typing import Tuple, Optional, Union
+from typing import Tuple, Union
 
 from snaplab_tools.utils import normalize_x
 

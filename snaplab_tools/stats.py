@@ -24,16 +24,26 @@ Subject-level brain-map coupling
     whether coupling differs between conditions. :func:`paired_ttest_vs_reference` compares
     several conditions against a common baseline.
 
+Multiple comparisons, outliers, and decomposition
+    :func:`get_fdr_p` applies Benjamini-Hochberg correction while preserving the shape of a
+    p-value grid. :func:`winsorize` and :func:`winsorize_iqr` clip outliers by percentile or by
+    the IQR rule. :func:`pca_with_nan_handling` runs PCA on data with missing entries, which
+    plain scikit-learn refuses to do. :func:`get_null_p` turns any observed statistic plus any
+    vector of null values into a p-value.
+
 Small helpers: :func:`significance_stars` formats a p-value for a figure annotation.
 
 For spatial null models -- the right way to test a brain-map correlation, since parcels are not
 independent observations -- see :mod:`snaplab_tools.nulls` rather than the parametric p-values
-returned here.
+returned here. :func:`get_null_p` lives here rather than there because it is generic: it does not
+care whether the null came from spatial surrogates, a permutation test, or anything else.
 """
 import numpy as np
 import pandas as pd
 import scipy as sp
 from scipy import stats
+from sklearn.decomposition import PCA
+from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 import statsmodels.api as sm
@@ -53,6 +63,11 @@ __all__ = [
     'subject_wise_coupling',
     'paired_coupling_test',
     'decoupling_test',
+    'get_null_p',
+    'get_fdr_p',
+    'winsorize',
+    'winsorize_iqr',
+    'pca_with_nan_handling',
 ]
 
 
@@ -159,12 +174,11 @@ def bootstrap_correlation_test(x, y, z, n_bootstrap=10000, method='spearman',
     y = np.asarray(y)
     z = np.asarray(z)
     
-    if method == 'pearson':
-        corr_func = lambda a, b: sp.stats.pearsonr(a, b)[0]
-    elif method == 'spearman':
-        corr_func = lambda a, b: sp.stats.spearmanr(a, b)[0]
-    else:
-        raise ValueError("method must be 'pearson' or 'spearman'")
+    if method not in ('pearson', 'spearman'):
+        raise ValueError(f"method must be 'pearson' or 'spearman'; got {method!r}")
+    # Via compute_stat so the n < 3 guard applies here too -- scipy silently returns r=1.0 for
+    # two points, which a resample can easily produce.
+    corr_func = lambda a, b: compute_stat(a, b, method, return_p=False)[0]
     
     # Observed difference
     r_xy_obs = corr_func(x, y)
@@ -182,16 +196,8 @@ def bootstrap_correlation_test(x, y, z, n_bootstrap=10000, method='spearman',
         r_xz_boot = corr_func(x[idx], z[idx])
         bootstrap_diffs[i] = r_xy_boot - r_xz_boot
     
-    # P-value
-    if alternative == 'two-sided':
-        p = np.mean(np.abs(bootstrap_diffs) >= np.abs(obs_diff))
-    elif alternative == 'less':
-        p = np.mean(bootstrap_diffs <= obs_diff)
-    elif alternative == 'greater':
-        p = np.mean(bootstrap_diffs >= obs_diff)
-    else:
-        raise ValueError("alternative must be 'two-sided', 'less', or 'greater'")
-    
+    p = get_null_p(obs_diff, bootstrap_diffs, alternative=alternative)
+
     return obs_diff, p
 
 
@@ -229,12 +235,11 @@ def permutation_correlation_test(x, y, z, n_permutations=10000, method='spearman
     y = np.asarray(y)
     z = np.asarray(z)
     
-    if method == 'pearson':
-        corr_func = lambda a, b: sp.stats.pearsonr(a, b)[0]
-    elif method == 'spearman':
-        corr_func = lambda a, b: sp.stats.spearmanr(a, b)[0]
-    else:
-        raise ValueError("method must be 'pearson' or 'spearman'")
+    if method not in ('pearson', 'spearman'):
+        raise ValueError(f"method must be 'pearson' or 'spearman'; got {method!r}")
+    # Via compute_stat so the n < 3 guard applies here too -- scipy silently returns r=1.0 for
+    # two points, which a resample can easily produce.
+    corr_func = lambda a, b: compute_stat(a, b, method, return_p=False)[0]
     
     # Observed difference
     r_xy_obs = corr_func(x, y)
@@ -257,20 +262,33 @@ def permutation_correlation_test(x, y, z, n_permutations=10000, method='spearman
         perm_diffs[i] = r_xy_perm - r_xz_perm
     
     # P-value
-    if alternative == 'two-sided':
-        p = np.mean(np.abs(perm_diffs) >= np.abs(obs_diff))
-    elif alternative == 'less':
-        p = np.mean(perm_diffs <= obs_diff)
-    elif alternative == 'greater':
-        p = np.mean(perm_diffs >= obs_diff)
-    else:
-        raise ValueError("alternative must be 'two-sided', 'less', or 'greater'")
+    p = get_null_p(obs_diff, perm_diffs, alternative=alternative)
 
     return obs_diff, p
 
 
-def compute_stat(x, y, method='pearson'):
-    """Compute a correlation or R^2 statistic with its parametric p-value.
+def _pearson_r(x, y):
+    """Pearson correlation coefficient only, without scipy's p-value machinery.
+
+    Roughly 8x faster than ``scipy.stats.pearsonr`` because it skips the input validation and
+    the beta-distribution p-value, which is most of that function's cost. Agrees with scipy to
+    machine precision. Returns NaN when either input is constant, matching what scipy does
+    (scipy also emits a ConstantInputWarning; this does not).
+    """
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    xm = x - x.mean()
+    ym = y - y.mean()
+
+    denom = np.sqrt((xm * xm).sum() * (ym * ym).sum())
+    if denom == 0:
+        return np.nan
+    # Clamp: floating-point error can push a perfect correlation a hair outside [-1, 1].
+    return float(np.clip((xm * ym).sum() / denom, -1.0, 1.0))
+
+
+def compute_stat(x, y, method='pearson', return_p=True):
+    """Compute a correlation or R^2 statistic, optionally with its parametric p-value.
 
     Parameters
     ----------
@@ -278,17 +296,44 @@ def compute_stat(x, y, method='pearson'):
         1-D arrays (NaN-free).
     method : {'pearson', 'spearman', 'r2'}
         Statistic to compute.
+    return_p : bool
+        Whether to compute the p-value. Set False in resampling loops and anywhere else the
+        p-value is discarded: computing it is most of the cost, so skipping it is about 8x
+        faster for 'pearson' and 2x for 'spearman' (where ranking dominates and cannot be
+        avoided). The statistic itself is identical either way.
 
     Returns
     -------
     stat : float
-        r, rho, or R^2.
+        r, rho, or R^2. NaN when fewer than three observations are supplied.
     p : float
-        Parametric p-value.
+        Parametric p-value, or NaN when `return_p` is False. Always returned, so the two-value
+        unpacking works regardless.
+
+    Notes
+    -----
+    Fewer than three points cannot support a correlation, but scipy does not say so: two points
+    always lie on a line, so ``scipy.stats.pearsonr`` returns ``r=1.0, p=1.0`` for ``n=2`` with no
+    warning at all. Returning NaN makes that visible rather than letting a perfect correlation
+    from two observations flow downstream.
+
+    Examples
+    --------
+    >>> r, p = compute_stat(x, y, 'pearson')                    # with p-value
+    >>> r, _ = compute_stat(x, y, 'pearson', return_p=False)    # coefficient only, ~8x faster
     """
+    if len(x) < 3 or len(y) < 3:
+        return np.nan, np.nan
+
     if method == 'pearson':
+        if not return_p:
+            return _pearson_r(x, y), np.nan
         return stats.pearsonr(x, y)
     elif method == 'spearman':
+        if not return_p:
+            # Spearman is Pearson on ranks. scipy.stats.rankdata handles ties correctly and is
+            # the bulk of the remaining cost, so the saving here is smaller than for Pearson.
+            return _pearson_r(stats.rankdata(x), stats.rankdata(y)), np.nan
         r, p = stats.spearmanr(x, y)
         return r, p
     elif method == 'r2':
@@ -296,6 +341,8 @@ def compute_stat(x, y, method='pearson'):
         model = LinearRegression().fit(X, y)
         r2 = r2_score(y, model.predict(X))
         n = len(x)
+        if not return_p:
+            return r2, np.nan
         if r2 >= 1.0:
             return r2, 0.0
         elif r2 <= 0:
@@ -364,15 +411,14 @@ def correlate_dataframes(df_neuro, df_ints, method='pearson', alpha=0.05,
                 null = null_distributions[int_col]           # (n_perms, n_regions)
                 null_masked = null[:, mask]
                 perm_stats = np.array([
-                    compute_stat(x, null_masked[i], method)[0]
+                    compute_stat(x, null_masked[i], method, return_p=False)[0]
                     for i in range(null.shape[0])
                 ])
-                if method == 'r2':
-                    row_p.append(float(np.mean(perm_stats >= stat_obs)))
-                elif stat_obs >= 0:
-                    row_p.append(float(np.mean(perm_stats >= stat_obs)))
-                else:
-                    row_p.append(float(np.mean(perm_stats <= stat_obs)))
+                # R^2 is a magnitude already, so a better fit always means a larger value and the
+                # upper tail is the only meaningful one. For a signed correlation the tail
+                # follows the direction of the observed effect.
+                tail = 'greater' if method == 'r2' else 'auto'
+                row_p.append(get_null_p(stat_obs, perm_stats, alternative=tail))
             else:
                 row_p.append(p_param)
 
@@ -606,12 +652,10 @@ def subject_wise_coupling(brain_maps, reference_map, method='spearman'):
     -------
     ndarray, shape (n_subjects,)
         Per-subject correlation. Regions with a NaN in the map or the reference are
-        excluded per subject; a subject with fewer than 2 usable regions yields NaN.
+        excluded per subject; a subject with fewer than 3 usable regions yields NaN.
     """
-    try:
-        corr_func = {'spearman': sp.stats.spearmanr, 'pearson': sp.stats.pearsonr}[method]
-    except KeyError:
-        raise ValueError("method must be 'spearman' or 'pearson'")
+    if method not in ('pearson', 'spearman'):
+        raise ValueError(f"method must be 'pearson' or 'spearman'; got {method!r}")
 
     brain_maps    = np.asarray(brain_maps,    dtype=float)
     reference_map = np.asarray(reference_map, dtype=float)
@@ -623,7 +667,8 @@ def subject_wise_coupling(brain_maps, reference_map, method='spearman'):
     rho = np.empty(brain_maps.shape[0])
     for i in range(brain_maps.shape[0]):
         m = ~(np.isnan(brain_maps[i]) | np.isnan(reference_map))
-        rho[i] = corr_func(brain_maps[i][m], reference_map[m]).statistic if m.sum() >= 2 else np.nan
+        # compute_stat returns NaN below three usable regions, so no explicit count guard here.
+        rho[i] = compute_stat(brain_maps[i][m], reference_map[m], method, return_p=False)[0]
     return rho
 
 
@@ -720,3 +765,283 @@ def decoupling_test(brain_maps_a, brain_maps_b, reference_map,
     rho_b = subject_wise_coupling(brain_maps_b, reference_map, method=method)
     # Subjects with an undefined coupling in either condition are dropped by the test.
     return paired_coupling_test(rho_a, rho_b, alternative=alternative)
+
+# =============================================================================
+# Multiple comparisons, outliers, and decomposition
+#
+# Moved here from snaplab_tools.utils, snaplab_tools.nulls.utils and
+# snaplab_tools.decomposition -- they are general-purpose statistics and belong with the
+# rest of them rather than scattered across modules named for other things.
+# =============================================================================
+
+
+def get_fdr_p(p_vals, alpha=0.05):
+    """Benjamini-Hochberg FDR correction that preserves the input shape.
+
+    A thin wrapper over ``statsmodels.stats.multitest.multipletests`` that flattens a 2D array
+    of p-values, corrects across all of them jointly, and reshapes the result -- convenient for
+    correcting a full correlation matrix or a region-by-variable grid in one call.
+
+    Parameters
+    ----------
+    p_vals : (n,) or (n, m) ndarray
+        Uncorrected p-values.
+    alpha : float
+        Family-wise target FDR. Only affects the rejection decision, which is discarded here;
+        the returned q-values are unaffected.
+
+    Returns
+    -------
+    ndarray
+        FDR-corrected p-values (q-values), same shape as `p_vals`.
+    """
+    if p_vals.ndim == 2:
+        do_reshape = True
+        dims = p_vals.shape
+        p_vals = p_vals.flatten()
+    else:
+        do_reshape = False
+
+    out = multipletests(p_vals, alpha=alpha, method='fdr_bh')
+    p_fdr = out[1]
+
+    if do_reshape:
+        p_fdr = p_fdr.reshape(dims)
+
+    return p_fdr
+
+
+def _clip_preserving_type(data, lower_bound, upper_bound):
+    """Clip to [lower_bound, upper_bound], returning the same container type as `data`.
+
+    NaNs pass through untouched: np.clip leaves them as NaN rather than pulling them to a bound.
+    """
+    if isinstance(data, pd.Series):
+        clipped = np.clip(data.values.astype(float), lower_bound, upper_bound)
+        return pd.Series(clipped, index=data.index, name=data.name)
+    return np.clip(np.asarray(data, dtype=float), lower_bound, upper_bound)
+
+
+def winsorize(data, lower_percentile=1, upper_percentile=99):
+    """Winsorize by clipping values at the given percentiles.
+
+    Parameters
+    ----------
+    data : array-like or pandas.Series
+        Data to winsorize. A Series comes back as a Series with its index and name intact.
+    lower_percentile, upper_percentile : float
+        Percentile thresholds to clip at. NaNs are ignored when computing them and are left as
+        NaN in the output.
+
+    Returns
+    -------
+    ndarray or pandas.Series
+        A winsorized copy; the input is never modified.
+
+    See Also
+    --------
+    winsorize_iqr : the same idea using Tukey's IQR rule instead of fixed percentiles.
+    """
+    values = data.values if isinstance(data, pd.Series) else np.asarray(data, dtype=float)
+    lower_bound = np.nanpercentile(values, lower_percentile)
+    upper_bound = np.nanpercentile(values, upper_percentile)
+    return _clip_preserving_type(data, lower_bound, upper_bound)
+
+
+def winsorize_iqr(data, k=1.5):
+    """Winsorize by clipping at Tukey's IQR fences, ``Q1 - k*IQR`` and ``Q3 + k*IQR``.
+
+    Unlike :func:`winsorize`, the thresholds adapt to the spread of the data rather than sitting
+    at fixed percentiles, so a tight distribution gets tight fences.
+
+    Parameters
+    ----------
+    data : array-like or pandas.Series
+        Data to winsorize. A Series comes back as a Series with its index and name intact.
+    k : float
+        IQR multiplier. 1.5 is Tukey's conventional "outlier" fence; 3.0 marks "far out" points.
+
+    Returns
+    -------
+    ndarray or pandas.Series
+        A winsorized copy; the input is never modified.
+
+    Notes
+    -----
+    Quartiles are computed with ``np.nanpercentile``. Using plain ``np.percentile`` here meant a
+    single NaN made both fences NaN, and since every comparison against NaN is False, the
+    function silently returned the data completely unwinsorized.
+    """
+    values = data.values if isinstance(data, pd.Series) else np.asarray(data, dtype=float)
+    q1 = np.nanpercentile(values, 25)
+    q3 = np.nanpercentile(values, 75)
+    iqr = q3 - q1
+    return _clip_preserving_type(data, q1 - k * iqr, q3 + k * iqr)
+
+
+def get_null_p(observed, null, alternative='two-sided'):
+    """Proportion of a null distribution at least as extreme as the observed statistic.
+
+    Generic: it does not care whether the null came from spatial surrogates, a bootstrap, a
+    permutation test, or anything else.
+
+    Parameters
+    ----------
+    observed : float
+        The observed test statistic.
+    null : (n_perms,) array-like
+        Null distribution of the same statistic.
+    alternative : {'two-sided', 'greater', 'less', 'auto'}
+        Which tail to test.
+
+        - 'two-sided' (default): proportion of the null whose *magnitude* is at least the
+          observed magnitude. The right choice when sign is not the hypothesis, as for a
+          correlation.
+        - 'greater': proportion of the null at or above `observed`.
+        - 'less': proportion of the null at or below `observed`.
+        - 'auto': one-tailed in whichever direction the observed effect points -- upper tail if
+          `observed` is non-negative, lower tail otherwise. Convenient, but note the direction is
+          chosen from the data, so it is not a pre-registered one-tailed test and will report
+          smaller p-values than 'two-sided'.
+
+    Returns
+    -------
+    float
+        The p-value, in [0, 1]. Note the minimum attainable value is ``1 / n`` over the finite
+        null entries -- a p of 0 means "smaller than this null can resolve", so report it as
+        ``p < 1/n_perms`` rather than as zero. Returns NaN if `observed` is not finite, or if the
+        null has no finite entries.
+
+    Notes
+    -----
+    Non-finite entries in `null` are dropped and the p-value is computed over what remains.
+    Surrogates whose statistic could not be computed carry no information about the null, so
+    counting them in the denominator would make the p-value anti-conservative.
+
+    Examples
+    --------
+    >>> p = get_null_p(0.42, null_distribution)                        # two-sided
+    >>> p = get_null_p(0.42, null_distribution, alternative='greater')  # directional
+    """
+    valid = ('two-sided', 'greater', 'less', 'auto')
+    if alternative not in valid:
+        raise ValueError(f"alternative must be one of {valid}; got {alternative!r}")
+
+    observed = float(observed)
+    null = np.asarray(null, dtype=float)
+    null = null[np.isfinite(null)]
+
+    # A NaN observed statistic (a constant input, an all-NaN region) should propagate as a NaN
+    # p-value rather than raise, so callers looping over regions get a result vector with holes
+    # instead of an exception part-way through.
+    if not np.isfinite(observed) or null.size == 0:
+        return np.nan
+
+    if alternative == 'two-sided':
+        return float(np.mean(np.abs(null) >= np.abs(observed)))
+
+    if alternative == 'auto':
+        alternative = 'greater' if observed >= 0 else 'less'
+
+    if alternative == 'greater':
+        return float(np.mean(null >= observed))
+    return float(np.mean(null <= observed))
+
+
+def pca_with_nan_handling(data, n_components=None, standardize=False, 
+                          return_full_shape=False, impute=False):
+    """
+    Perform PCA with NaN handling.
+    
+    Parameters
+    ----------
+    data : ndarray, shape (n_samples, n_features)
+        Input data where samples are in rows and features in columns.
+        For your case: (n_regions, n_measures)
+    n_components : int, float, or None
+        Number of components to keep. If None, keeps all components.
+        If float between 0 and 1, selects number of components such that
+        the explained variance is greater than the percentage specified.
+    standardize : bool, default=False
+        If True, z-score the data (per feature) before PCA.
+    return_full_shape : bool, default=False
+        If True, returns scores in original shape with NaNs reinserted.
+        If False, returns scores only for valid samples.
+        Only relevant when impute=False.
+    impute : bool, default=False
+        If True, impute NaN values using median of each column.
+        If False, remove rows containing any NaNs.
+    
+    Returns
+    -------
+    results : dict
+        Dictionary containing:
+
+        - 'scores': PC scores, shape (n_valid_samples, n_components) or
+          (n_samples, n_components) if return_full_shape=True or impute=True
+        - 'loadings': PC loadings (weights), shape (n_features, n_components)
+        - 'explained_variance': Variance explained by each component
+        - 'explained_variance_ratio': Proportion of variance explained
+        - 'cumulative_variance_ratio': Cumulative proportion of variance
+        - 'pca_object': Fitted PCA object
+        - 'valid_mask': Boolean mask of valid (non-NaN) samples (None if impute=True)
+        - 'mean': Mean of each feature (after NaN handling, before PCA)
+        - 'std': Std of each feature if standardized, else None
+        - 'imputer': SimpleImputer object if impute=True, else None
+    """
+    if impute:
+        # Impute NaNs using median
+        imputer = SimpleImputer(strategy='median')
+        data_clean = imputer.fit_transform(data)
+        valid_mask = None
+    else:
+        # Identify rows without NaNs
+        valid_mask = ~np.isnan(data).any(axis=1)
+        n_valid = valid_mask.sum()
+        
+        if n_valid == 0:
+            raise ValueError("All samples contain NaNs")
+        
+        # Extract valid data
+        data_clean = data[valid_mask]
+        imputer = None
+    
+    # Store mean for centering information
+    mean = np.mean(data_clean, axis=0)
+    std = None
+    
+    # Optional standardization
+    if standardize:
+        data_clean = stats.zscore(data_clean, axis=0, ddof=1)
+        std = np.std(data_clean, axis=0, ddof=1)
+    
+    # Perform PCA
+    pca = PCA(n_components=n_components)
+    scores = pca.fit_transform(data_clean)
+    
+    # Get loadings (components_ is transposed)
+    loadings = pca.components_.T
+    
+    # Optionally return full shape with NaNs (only when not imputing)
+    if not impute and return_full_shape:
+        scores_full = np.full((data.shape[0], scores.shape[1]), np.nan)
+        scores_full[valid_mask] = scores
+        scores = scores_full
+    
+    # Calculate cumulative variance
+    cumulative_variance_ratio = np.cumsum(pca.explained_variance_ratio_)
+    
+    results = {
+        'scores': scores,
+        'loadings': loadings,
+        'explained_variance': pca.explained_variance_,
+        'explained_variance_ratio': pca.explained_variance_ratio_,
+        'cumulative_variance_ratio': cumulative_variance_ratio,
+        'pca_object': pca,
+        'valid_mask': valid_mask,
+        'mean': mean,
+        'std': std,
+        'imputer': imputer
+    }
+    
+    return results

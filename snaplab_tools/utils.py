@@ -1,6 +1,4 @@
-"""General-purpose helpers: parcellation fetching, parcel-wise averaging, and small numerics.
-
-Three loosely related groups of functions live here.
+"""Parcellation fetching, parcel-wise averaging, and small numerics.
 
 Parcellations
     :func:`load_schaefer_parc` and :func:`schaefer_ordering_mapper` download Schaefer2018
@@ -12,19 +10,19 @@ Parcel-wise averaging
     volumetric or surface data to one value per parcel.
 
 Numerics
-    :func:`normalize_x`, :func:`exp_decay`, :func:`get_fdr_p`, :func:`winsorize`,
-    :func:`winsorize_iqr`, and :func:`nuis_reg` -- rescaling, curve fitting, multiple-comparison
-    correction, outlier handling, and nuisance regression.
+    :func:`normalize_x` rescales to [0, 1]; :func:`exp_decay` is the model function to fit when
+    estimating a decay timescale.
 
 Note that the parcellation fetchers hit the network on first call. If you only need Schaefer
 centroids or geodesic distances, :mod:`snaplab_tools.nulls` ships those offline.
+
+Statistics that used to live here -- FDR correction, winsorizing, nuisance regression -- are now
+in :mod:`snaplab_tools.stats`, alongside the rest of them.
 """
 import os, wget
 import numpy as np
 import pandas as pd
 import nibabel as nib
-from statsmodels.stats import multitest
-from sklearn.linear_model import LinearRegression
 
 __all__ = [
     'normalize_x',
@@ -34,10 +32,6 @@ __all__ = [
     'get_parcelwise_average_surface',
     'load_schaefer_parc',
     'schaefer_ordering_mapper',
-    'get_fdr_p',
-    'winsorize',
-    'winsorize_iqr',
-    'nuis_reg',
 ]
 
 
@@ -361,154 +355,3 @@ def schaefer_ordering_mapper(out_dir='~/schaefer_ordering_mapper',
 
     return mapped
 
-
-def get_fdr_p(p_vals, alpha=0.05):
-    """Benjamini-Hochberg FDR correction that preserves the input shape.
-
-    A thin wrapper over ``statsmodels.stats.multitest.multipletests`` that flattens a 2D array
-    of p-values, corrects across all of them jointly, and reshapes the result -- convenient for
-    correcting a full correlation matrix or a region-by-variable grid in one call.
-
-    Parameters
-    ----------
-    p_vals : (n,) or (n, m) ndarray
-        Uncorrected p-values.
-    alpha : float
-        Family-wise target FDR. Only affects the rejection decision, which is discarded here;
-        the returned q-values are unaffected.
-
-    Returns
-    -------
-    ndarray
-        FDR-corrected p-values (q-values), same shape as `p_vals`.
-    """
-    if p_vals.ndim == 2:
-        do_reshape = True
-        dims = p_vals.shape
-        p_vals = p_vals.flatten()
-    else:
-        do_reshape = False
-
-    out = multitest.multipletests(p_vals, alpha=alpha, method='fdr_bh')
-    p_fdr = out[1]
-
-    if do_reshape:
-        p_fdr = p_fdr.reshape(dims)
-
-    return p_fdr
-
-
-def winsorize(data, lower_percentile=1, upper_percentile=100):
-    """
-    Winsorize data by clipping values at specified percentiles.
-    
-    Parameters
-    ----------
-    data : np.ndarray or pd.Series
-        Data to winsorize
-    lower_percentile : float
-        Lower percentile threshold (default: 1)
-    upper_percentile : float
-        Upper percentile threshold (default: 99)
-    
-    Returns
-    -------
-    np.ndarray or pd.Series
-        Winsorized copy of the data
-    """
-    if isinstance(data, pd.Series):
-        values = data.values.copy()
-        lower_bound = np.nanpercentile(values, lower_percentile)
-        upper_bound = np.nanpercentile(values, upper_percentile)
-        winsorized = np.clip(values, lower_bound, upper_bound)
-        return pd.Series(winsorized, index=data.index, name=data.name)
-    else:
-        values = np.array(data).copy()
-        lower_bound = np.nanpercentile(values, lower_percentile)
-        upper_bound = np.nanpercentile(values, upper_percentile)
-        return np.clip(values, lower_bound, upper_bound)
-
-
-def winsorize_iqr(vector, k=1.5, inplace=False):
-    """
-    Winsorizes a vector using the IQR method to handle outliers.
-    
-    Parameters:
-    -----------
-    vector : array-like
-        Input data to be winsorized (list, numpy array, or pandas Series)
-    k : float, optional (default=1.5)
-        Multiplier for IQR to determine outlier thresholds
-    inplace : bool, optional (default=False)
-        If True, modifies the input vector in place (only works with mutable input)
-        
-    Returns:
-    --------
-    winsorized_vector : numpy array
-        Winsorized version of the input vector
-    """
-    # Convert input to numpy array if it isn't already
-    if not isinstance(vector, np.ndarray):
-        vector = np.array(vector)
-    
-    # Calculate quartiles and IQR
-    q1 = np.percentile(vector, 25)
-    q3 = np.percentile(vector, 75)
-    iqr = q3 - q1
-    
-    # Calculate lower and upper bounds
-    lower_bound = q1 - k * iqr
-    upper_bound = q3 + k * iqr
-    
-    # Create a copy unless inplace is True and input is mutable
-    if inplace and isinstance(vector, np.ndarray):
-        winsorized_vector = vector
-    else:
-        winsorized_vector = vector.copy()
-    
-    # Winsorize the values
-    winsorized_vector[winsorized_vector < lower_bound] = lower_bound
-    winsorized_vector[winsorized_vector > upper_bound] = upper_bound
-    
-    return winsorized_vector
-
-
-def nuis_reg(X, y, use_sklearn=False):
-    """Residualize `y` on nuisance covariates `X` by ordinary least squares.
-
-    Note that no intercept is added: if you want the mean removed, include a column of ones in
-    `X`. :func:`snaplab_tools.stats.residualize` is the higher-level alternative -- it adds an
-    intercept and handles NaNs.
-
-    Parameters
-    ----------
-    X : (n_obs, n_covariates) ndarray
-        Nuisance covariates.
-    y : (n_obs,) or (n_obs, n_targets) ndarray
-        Data to residualize.
-    use_sklearn : bool
-        Fit with ``sklearn.linear_model.LinearRegression`` (which does fit an intercept)
-        instead of the pseudo-inverse. Both 1D inputs are promoted to column vectors in this
-        branch, so the residuals come back 2D.
-
-    Returns
-    -------
-    ndarray
-        Residuals of `y` after removing the linear contribution of `X`.
-    """
-    if use_sklearn:
-        if X.ndim == 1:
-            X = X[:, np.newaxis]
-        if y.ndim == 1:
-            y = y[:, np.newaxis]
-
-        regr = LinearRegression()
-        regr.fit(X, y)
-        predicted = regr.predict(X)
-        residuals = y - predicted
-    else:
-        beta = np.dot(np.linalg.pinv(X), y)
-        predicted = np.dot(X, beta)
-        residuals = y - predicted
-    
-    return residuals

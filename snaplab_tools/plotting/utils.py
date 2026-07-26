@@ -15,17 +15,16 @@ Colormaps
     -- use it to check a categorical palette stays distinguishable.
 
 Statistics annotation
-    :func:`compute_correlation`, :func:`create_correlation_text`, :func:`format_pvalue`,
-    :func:`get_p_val_string`, :func:`determine_significance`, and :func:`add_stats_annotation`
-    turn a pair of vectors into the annotated text block on a correlation plot;
-    :func:`create_null_inset` draws the embedded null distribution.
+    :func:`create_correlation_text`, :func:`format_pvalue`, and :func:`add_stats_annotation` turn a pair of vectors into the annotated text block on a
+    correlation plot; :func:`create_null_inset` draws the embedded null distribution. The
+    statistics themselves come from :mod:`snaplab_tools.stats` -- this module only formats them.
 
 Axis helpers
     :func:`style_correlation_axis`, :func:`add_module_lines` (system boundaries on a matrix
     plot), :func:`process_input_data` (shared input validation), and :func:`roi_to_vtx` (project
     parcel values onto surface vertices).
 """
-import os, platform
+import os
 import numpy as np
 import pandas as pd
 import scipy as sp
@@ -35,8 +34,9 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.ticker import FormatStrFormatter
-from nilearn import datasets
 from nilearn import plotting
+
+from snaplab_tools.stats import significance_stars
 
 __all__ = [
     'set_plotting_params',
@@ -46,11 +46,8 @@ __all__ = [
     'register_custom_colormaps',
     'show_colormaps',
     'cvd_min_delta_e',
-    'compute_correlation',
     'create_correlation_text',
     'format_pvalue',
-    'get_p_val_string',
-    'determine_significance',
     'add_stats_annotation',
     'create_null_inset',
     'style_correlation_axis',
@@ -289,48 +286,6 @@ def process_input_data(x, y, data_group=None):
     return result
 
 
-def compute_correlation(x, y, method='pearson'):
-    """
-    Compute correlation coefficient and p-value.
-    
-    Parameters
-    ----------
-    x, y : array-like
-        Input variables
-    method : str
-        Correlation method ('pearson' or 'spearman')
-        
-    Returns
-    -------
-    dict
-        Dictionary containing:
-        - corr_coef : correlation coefficient
-        - p_value : p-value
-        - method_name : full method name
-    """
-    if len(x) < 3 or len(y) < 3:
-        return {
-            'corr_coef': np.nan,
-            'p_value': np.nan,
-            'method_name': method.capitalize()
-        }
-    
-    if method.lower() == 'pearson':
-        corr_coef, p_value = sp.stats.pearsonr(x, y)
-        method_name = "Pearson"
-    elif method.lower() == 'spearman':
-        corr_coef, p_value = sp.stats.spearmanr(x, y)
-        method_name = "Spearman"
-    else:
-        raise ValueError("Method must be 'pearson' or 'spearman'")
-    
-    return {
-        'corr_coef': corr_coef,
-        'p_value': p_value,
-        'method_name': method_name
-    }
-
-
 def format_pvalue(p_value):
     """
     Format p-value for display.
@@ -351,32 +306,6 @@ def format_pvalue(p_value):
         return f'p={p_value:.2e}'
     else:
         return f'p={p_value:.2f}'
-
-
-def determine_significance(p_value):
-    """
-    Determine significance stars based on p-value.
-    
-    Parameters
-    ----------
-    p_value : float
-        P-value
-        
-    Returns
-    -------
-    str
-        Significance stars ('***', '**', '*', or 'ns')
-    """
-    if np.isnan(p_value):
-        return 'ns'
-    elif p_value < 0.001:
-        return "***"
-    elif p_value < 0.01:
-        return "**"
-    elif p_value < 0.05:
-        return "*"
-    else:
-        return "ns"
 
 
 def create_correlation_text(corr_coef, p_value, method='pearson', 
@@ -411,7 +340,7 @@ def create_correlation_text(corr_coef, p_value, method='pearson',
         Formatted statistics text
     """
     # Get significance and formatted p-value
-    sig_stars = determine_significance(p_value)
+    sig_stars = significance_stars(p_value)
     p_str = format_pvalue(p_value)
     
     # Create correlation symbol
@@ -463,7 +392,7 @@ def create_correlation_text(corr_coef, p_value, method='pearson',
         t_stat = ttest_stats.get('t_stat')
         t_p_value = ttest_stats.get('p_value')
         if not np.isnan(t_stat) and not np.isnan(t_p_value):
-            t_sig_stars = determine_significance(t_p_value)
+            t_sig_stars = significance_stars(t_p_value)
             t_p_str = format_pvalue(t_p_value)
             stats_text += f"\nt = {t_stat:.2f}{t_sig_stars}\n{t_p_str}"
     
@@ -801,29 +730,3 @@ def show_colormaps(names=None, figsize=None):
 ######################################################################################################################################################
 # deprecated functions. Maintained for historical purposes, but have been replaced by newer functions.
 ######################################################################################################################################################
-def get_p_val_string(p_val):
-    """Format a p-value as a matplotlib mathtext annotation (italic p = value).
-
-    Uses scientific notation with 2 significant figures for p < 0.05, else 3
-    decimal places.
-
-    Parameters
-    ----------
-    p_val : float
-        P-value to format.
-
-    Returns
-    -------
-    str
-        Mathtext p-value string for plot annotations.
-    """
-    # if np.round(p_val, 3) == 0.000:
-        # p_str = "-log10($\mathit{:}$)>25".format('{p}')
-    if p_val < 0.05:
-        # Two significant digits in the mantissa: '{:0.0e}' rounded 1.76e-2 -> "2e-02",
-        # which reads as a different p-value than the one being reported (e.g. 1.76e-02).
-        p_str = '$\mathit{:}$={:.2e}'.format('{p}', p_val)
-    else:
-        p_str = "$\mathit{:}$={:.3f}".format('{p}', p_val)
-
-    return p_str

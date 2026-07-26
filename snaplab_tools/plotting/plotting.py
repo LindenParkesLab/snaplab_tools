@@ -9,26 +9,23 @@ Correlation plots
     coefficient, which can also colour points by category, fit and compare polynomial orders, and
     embed an inset showing an empirical null. :func:`plot_correlation_unity` is the variant with
     X=Y on the diagonal, for comparing two measurements of the same quantity.
-    :func:`reg_plot` is a lighter-weight alternative.
 
 Brain surfaces
     :func:`plot_brain_surface_data` and :func:`plot_brain_surface_data_single` render parcellated
     data on inflated cortical surfaces via ``surfplot`` (install the ``surface`` extra; imported
-    lazily, so the rest of this module works without it). :func:`surface_plot` is a
-    nilearn-only fallback that needs no VTK. :func:`brain_scatter_plot` draws nodes and edges in
-    anatomical coordinates.
+    lazily, so the rest of this module works without it). :func:`brain_scatter_plot` draws nodes
+    and edges in anatomical coordinates.
 
 Distributions and comparisons
     :func:`null_plot` overlays an observed statistic on its null distribution;
-    :func:`categorical_kde_plot` and :func:`paired_line_plot` compare groups or conditions;
-    :func:`annotate_significance_brackets` adds the significance brackets over them.
+    :func:`categorical_kde_plot` and :func:`paired_line_plot` compare groups or conditions.
 
 Surface functions expect Schaefer FreeSurfer ``.annot`` files under the directory named by the
 ``SCHAEFER_ANNOT_DIR`` environment variable (default ``~/Schaefer2018_LocalGlobal/...``);
 :func:`snaplab_tools.utils.load_schaefer_parc` will download them for you.
 """
 import io
-import os, platform
+import os
 import numpy as np
 import scipy as sp
 import nibabel as nib
@@ -46,8 +43,6 @@ from matplotlib.cm import ScalarMappable
 # everywhere else in their session. Call plt.ion() yourself if you want it.
 
 from nilearn import datasets
-from nilearn import plotting
-from nilearn.surface import load_surf_data
 
 # Default location for Schaefer FreeSurfer annotation files, used when the SCHAEFER_ANNOT_DIR
 # environment variable is not set.
@@ -65,22 +60,20 @@ def _schaefer_annot_dir():
         os.environ.get('SCHAEFER_ANNOT_DIR', _DEFAULT_SCHAEFER_ANNOT_DIR)
     )
 
-from snaplab_tools.plotting.utils import get_p_val_string, roi_to_vtx, get_my_colors, process_input_data, \
-    compute_correlation, create_correlation_text, add_stats_annotation, create_null_inset, style_correlation_axis, \
-        determine_significance, format_pvalue
+from snaplab_tools.stats import compute_stat, get_null_p, significance_stars
+from snaplab_tools.plotting.utils import get_my_colors, process_input_data, \
+    create_correlation_text, add_stats_annotation, create_null_inset, style_correlation_axis, \
+        format_pvalue
 
 __all__ = [
     'plot_correlation',
     'plot_correlation_unity',
-    'reg_plot',
     'null_plot',
     'brain_scatter_plot',
     'plot_brain_surface_data',
     'plot_brain_surface_data_single',
-    'surface_plot',
     'categorical_kde_plot',
     'paired_line_plot',
-    'annotate_significance_brackets',
     'YEO7_COLORS',
 ]
 
@@ -212,11 +205,9 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
     # Extract data_group_clean if present
     data_group_clean = data_dict.get('data_group_clean', None)
     
-    # Compute correlation
-    corr_dict = compute_correlation(x_clean, y_clean, method)
-    corr_coef = corr_dict['corr_coef']
-    p_value = corr_dict['p_value']
-    method_name = corr_dict['method_name']
+    # Compute correlation (returns NaN below three points -- see compute_stat)
+    corr_coef, p_value = compute_stat(x_clean, y_clean, method)
+    method_name = method.capitalize()
     
     # Process custom_inset parameters
     custom_null = None
@@ -232,10 +223,7 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
 
         inset_pvalue = custom_inset.get('custom_pvalue', None)
         if inset_pvalue is None and custom_null is not None and len(custom_null) > 0:
-            if corr_coef >= 0:
-                inset_pvalue = np.mean(custom_null >= corr_coef)
-            else:
-                inset_pvalue = np.mean(custom_null <= corr_coef)
+            inset_pvalue = get_null_p(corr_coef, custom_null, alternative='auto')
 
     # Top-level custom_pvalue takes priority over custom_inset['custom_pvalue']
     resolved_pvalue = custom_pvalue if custom_pvalue is not None else inset_pvalue
@@ -684,24 +672,16 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
     y_std = y_clean.std()
     compression_ratio = y_std / x_std if x_std > 0 else np.nan
     
-    # Compute both correlations
-    if n_valid > 2:
-        corr_pearson = compute_correlation(x_clean, y_clean, 'pearson')
-        corr_spearman = compute_correlation(x_clean, y_clean, 'spearman')
-        
-        # Select which correlation to use based on correlation_type
-        if correlation_type.lower() == 'spearman':
-            corr_dict = corr_spearman
-        else:
-            corr_dict = corr_pearson
-        
-        corr_coef = corr_dict['corr_coef']
-        p_value = corr_dict['p_value']
+    # Compute both correlations. compute_stat returns (nan, nan) below three points, so the
+    # explicit small-sample branch this used to need has gone.
+    r_pearson, p_pearson = compute_stat(x_clean, y_clean, 'pearson')
+    r_spearman, p_spearman = compute_stat(x_clean, y_clean, 'spearman')
+
+    # Select which correlation to use based on correlation_type
+    if correlation_type.lower() == 'spearman':
+        corr_coef, p_value = r_spearman, p_spearman
     else:
-        corr_pearson = {'corr_coef': np.nan, 'p_value': np.nan}
-        corr_spearman = {'corr_coef': np.nan, 'p_value': np.nan}
-        corr_coef = np.nan
-        p_value = np.nan
+        corr_coef, p_value = r_pearson, p_pearson
     
     # Variance difference test
     if n_valid > 2:
@@ -810,7 +790,7 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
     # Set title with t-test if marginals are shown
     if show_marginals and not np.isnan(t_stat):
         # Create title with t-test information
-        t_sig_stars = determine_significance(t_p_value)
+        t_sig_stars = significance_stars(t_p_value)
         t_p_str = format_pvalue(t_p_value)
         title_text = f't={t_stat:.2f}{t_sig_stars}, {t_p_str}'
         ax.set_title(title_text, fontsize=fontsize-2)
@@ -838,10 +818,10 @@ def plot_correlation_unity(x, y, ax, x_label=None, y_label=None,
         'compression_ratio': compression_ratio,
         'correlation': corr_coef,
         'correlation_p': p_value,
-        'correlation_pearson': corr_pearson['corr_coef'],
-        'correlation_pearson_p': corr_pearson['p_value'],
-        'correlation_spearman': corr_spearman['corr_coef'],
-        'correlation_spearman_p': corr_spearman['p_value'],
+        'correlation_pearson': r_pearson,
+        'correlation_pearson_p': p_pearson,
+        'correlation_spearman': r_spearman,
+        'correlation_spearman_p': p_spearman,
         'variance_diff_p': var_p,
         'ttest_t': t_stat,
         'ttest_p': t_p_value
@@ -895,15 +875,9 @@ def null_plot(observed, null, xlabel, ax, p_val=None, add_text=True, line_color=
 
     if add_text is True:
         if p_val is not None:
-            ax.text(observed, ax.get_ylim()[1], get_p_val_string(p_val),
+            ax.text(observed, ax.get_ylim()[1], format_pvalue(p_val),
                     horizontalalignment='left', verticalalignment='top',
                     rotation=270, c=line_color, size=6)
-
-    # if p_val:
-    #     textstr = '{:}'.format(get_p_val_string(p_val))
-    #     ax.text(observed - (np.abs(observed)*0.0025), ax.get_ylim()[1], textstr,
-    #             horizontalalignment='right', verticalalignment='top',
-    #             rotation=270, c=color_red)
 
 
 def brain_scatter_plot(parcel_coords, node_data=None, edge_data=None, fig_height=1.25, vmin=None, vmax=None, cmap=None, add_colorbar=False, ax=None):
@@ -1019,6 +993,27 @@ def _annot_to_surf(roi_data, annot_file, mask=None):
             continue
         vtx_data[labels == i] = roi_data[i - 1]
     return vtx_data
+
+
+def _draw_cbar(fig, cax, vmin, vmax, cmap, label, fontsize, orientation='horizontal'):
+    """Draw a colorbar for a value range onto an existing axis.
+
+    Shared by plot_brain_surface_data and plot_brain_surface_data_single, which differ in where
+    the axis sits, not in how the bar itself is built.
+    """
+    sm = ScalarMappable(norm=Normalize(vmin=vmin, vmax=vmax), cmap=cmap)
+    sm.set_array([])
+
+    cbar = fig.colorbar(sm, cax=cax, orientation=orientation)
+    cbar.set_label(label, fontsize=fontsize)
+    cbar.ax.tick_params(labelsize=fontsize, length=2, pad=1)
+
+    ticks, fmt = _cbar_ticks(vmin, vmax)
+    cbar.set_ticks(ticks)
+    if fmt:
+        axis = cbar.ax.yaxis if orientation == 'vertical' else cbar.ax.xaxis
+        axis.set_major_formatter(FormatStrFormatter(fmt))
+    return cbar
 
 
 def _cbar_ticks(vmin, vmax, n=3):
@@ -1293,27 +1288,13 @@ def plot_brain_surface_data(data_vector, parcellation='schaefer_400', surface='f
                  fontsize=fontsize, fontweight='bold')
 
     if colorbar:
-        norm = Normalize(vmin=vmin, vmax=vmax)
-        sm = ScalarMappable(norm=norm, cmap=cmap)
-        sm.set_array([])
-        ticks, fmt = _cbar_ticks(vmin, vmax)
-
         if cbar_orientation == 'right':
             ax_cbar = fig.add_axes([1.0 - right + 0.02, 0.15, 0.06, 0.70])
-            cbar = fig.colorbar(sm, cax=ax_cbar, orientation='vertical')
-            cbar.set_label(cbar_label, fontsize=fontsize)
-            cbar.ax.tick_params(labelsize=fontsize, length=2, pad=1)
-            cbar.set_ticks(ticks)
-            if fmt:
-                cbar.ax.yaxis.set_major_formatter(FormatStrFormatter(fmt))
+            orientation = 'vertical'
         else:
             ax_cbar = fig.add_axes([0.12, 0.02, 0.76, 0.07])
-            cbar = fig.colorbar(sm, cax=ax_cbar, orientation='horizontal')
-            cbar.set_label(cbar_label, fontsize=fontsize)
-            cbar.ax.tick_params(labelsize=fontsize, length=2, pad=1)
-            cbar.set_ticks(ticks)
-            if fmt:
-                cbar.ax.xaxis.set_major_formatter(FormatStrFormatter(fmt))
+            orientation = 'horizontal'
+        _draw_cbar(fig, ax_cbar, vmin, vmax, cmap, cbar_label, fontsize, orientation)
 
     if show_stats:
         data_vector = np.array(data_vector)
@@ -1437,16 +1418,7 @@ def plot_brain_surface_data_single(data_vector, fig, subplotspec,
     ax.axis('off')
 
     if colorbar:
-        norm = Normalize(vmin=vmin, vmax=vmax)
-        sm = ScalarMappable(norm=norm, cmap=cmap)
-        sm.set_array([])
-        cbar = fig.colorbar(sm, cax=ax_cbar, orientation='horizontal')
-        cbar.set_label(cbar_label, fontsize=fontsize)
-        cbar.ax.tick_params(labelsize=fontsize, length=2, pad=1)
-        ticks, fmt = _cbar_ticks(vmin, vmax)
-        cbar.set_ticks(ticks)
-        if fmt:
-            cbar.ax.xaxis.set_major_formatter(FormatStrFormatter(fmt))
+        _draw_cbar(fig, ax_cbar, vmin, vmax, cmap, cbar_label, fontsize, 'horizontal')
 
     return ax
 
@@ -1601,290 +1573,3 @@ def paired_line_plot(x, y_1, y_2, y_1_label, y_2_label, ax, add_summary_line='me
 
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
-
-######################################################################################################################################################
-# deprecated functions. Maintained for historical purposes, but have been replaced by newer functions.
-######################################################################################################################################################
-def reg_plot(x, y, ax, xlabel='X', ylabel='Y', c='gray', annotate='pearson', add_pval=True, regr_line=True, kde=True, fontsize=8, order=1):
-    """Scatter of x vs y with an optional KDE, regression line, and r/rho annotation.
-
-    NaNs are dropped pairwise; square matrices have their diagonal excluded.
-
-    Parameters
-    ----------
-    x, y : array-like
-        Variables to plot (1-D, or square matrices whose off-diagonal entries are used).
-    ax : matplotlib Axes
-        Axis to plot on.
-    xlabel, ylabel : str
-        Axis labels.
-    c : color or array-like
-        Point colour, or per-point values for a viridis mapping.
-    annotate : {'pearson', 'spearman', 'both'}, tuple, or None
-        Which correlation to annotate; a (coef, p) tuple annotates a custom stat.
-    add_pval : bool
-        Include the p-value in the annotation.
-    regr_line : bool
-        Overlay a seaborn regression line of the given order.
-    kde : bool
-        Overlay a 2-D KDE.
-    fontsize : int
-        Annotation font size.
-    order : int
-        Polynomial order of the regression line.
-    """
-    
-    if isinstance(x, pd.Series):
-        x = x.values
-    if isinstance(y, pd.Series):
-        y = y.values
-    
-    if len(x.shape) > 1 and len(y.shape) > 1:
-        if x.shape[0] == x.shape[1] and y.shape[0] == y.shape[1]:
-            mask_x = ~np.eye(x.shape[0], dtype=bool) * ~np.isnan(x)
-            mask_y = ~np.eye(y.shape[0], dtype=bool) * ~np.isnan(y)
-            mask = mask_x * mask_y
-            indices = np.where(mask)
-        else:
-            mask_x = ~np.isnan(x)
-            mask_y = ~np.isnan(y)
-            mask = mask_x * mask_y
-            indices = np.where(mask)
-    elif len(x.shape) == 1 and len(y.shape) == 1:
-        mask_x = ~np.isnan(x)
-        mask_y = ~np.isnan(y)
-        mask = mask_x * mask_y
-        indices = np.where(mask)
-    else:
-        print('error: input array dimension mismatch.')
-
-    try:
-        x = x[indices]
-        y = y[indices]
-    except:
-        pass
-
-    try:
-        c = c[indices]
-    except:
-        pass
-
-    # kde plot
-    if kde == True:
-        try:
-            sns.kdeplot(x=x, y=y, ax=ax, color='gray', thresh=0.05, alpha=0.25)
-        except:
-            pass
-
-    # regression line
-    if regr_line == True:
-        # color_blue = sns.color_palette("Set1")[1]
-        my_colors = get_my_colors()
-        sns.regplot(x=x, y=y, ax=ax, scatter=False, color=my_colors['north_sea_green'], order=order)
-
-    # scatter plot
-    if type(c) == str:
-        ax.scatter(x=x, y=y, c=c, s=2.5, alpha=0.5)
-    else:
-        ax.scatter(x=x, y=y, c=c, cmap='viridis', s=2.5, alpha=0.5)
-
-    # axis options
-    ax.set_xlabel(xlabel, labelpad=0)
-    ax.set_ylabel(ylabel, labelpad=0)
-    # ax.tick_params(pad=-2.5)
-    # ax.grid(False)
-    # sns.despine(right=True, top=True, ax=ax)
-    sns.despine(offset=0, trim=False, left=False, right=True, top=True, bottom=False, ax=ax)
-    ax.tick_params(left=True, bottom=True)
-
-    # annotation
-    r, r_p = sp.stats.pearsonr(x, y)
-    rho, rho_p = sp.stats.spearmanr(x, y)
-    if type(annotate) == str:
-        if annotate == 'pearson':
-            if add_pval:
-                textstr = '$\mathit{:}$ = {:.2f}, {:}'.format('{r}', r, get_p_val_string(r_p))
-            else:
-                textstr = '$\mathit{:}$ = {:.2f}'.format('{r}', r)
-            ax.text(0.05, 0.975, textstr, transform=ax.transAxes, fontsize=fontsize,
-                    verticalalignment='top')
-        elif annotate == 'spearman':
-            if add_pval:
-                textstr = '$\\rho$ = {:.2f}, {:}'.format(rho, get_p_val_string(rho_p))
-            else:
-                textstr = '$\\rho$ = {:.2f}'.format(rho)
-            ax.text(0.05, 0.975, textstr, transform=ax.transAxes, fontsize=fontsize,
-                    verticalalignment='top')
-        elif annotate == 'both':
-            if add_pval:
-                textstr = '$\mathit{:}$ = {:.2f}, {:}\n$\\rho$ = {:.2f}, {:}'.format('{r}', r, get_p_val_string(r_p),
-                                                                                    rho, get_p_val_string(rho_p))
-            else:
-                textstr = '$\mathit{:}$ = {:.2f}\n$\\rho$ = {:.2f}'.format('{r}', r, rho)
-            ax.text(0.05, 0.975, textstr, transform=ax.transAxes, fontsize=fontsize,
-                    verticalalignment='top')
-    elif type(annotate) == tuple:
-        coef = annotate[0]
-        p = annotate[1]
-        textstr = 'coef = {:.2f}, {:}'.format(coef, get_p_val_string(p))
-        ax.text(0.05, 0.975, textstr, transform=ax.transAxes, fontsize=fontsize, verticalalignment='top')
-    else:
-        pass
-    
-
-def surface_plot(data, lh_annot_file, rh_annot_file,
-                 fsaverage=None,
-                 order='lr', cmap='viridis', cblim=None, title_str=None):
-    """Plot parcellated data on the cortical surface (lateral + medial, both hemispheres).
-
-    Parameters
-    ----------
-    data : (n_parcels,) array-like
-        Parcel values; the two halves map to the hemispheres per `order`.
-    lh_annot_file, rh_annot_file : str
-        FreeSurfer annotation files for the left/right hemispheres.
-    fsaverage : dict or None
-        nilearn fsaverage surface meshes. When None (the default), fsaverage5 is
-        fetched on first use -- passing a pre-fetched dict avoids repeating the
-        download across calls.
-    order : {'lr', 'rl'}
-        Whether the first half of `data` is the left or right hemisphere.
-    cmap : str
-        Colormap; diverging maps (coolwarm/vlag/icefire) auto-symmetrise the limits.
-    cblim : tuple or None
-        (vmax, vmin) colour limits; derived from the data if None.
-    title_str : str or None
-        Figure title.
-    """
-    # Fetched here rather than as a default argument: a default would run the download at
-    # import time, so merely importing this module would hit the network.
-    if fsaverage is None:
-        fsaverage = datasets.fetch_surf_fsaverage(mesh='fsaverage5')
-
-    # project data to surface
-    n_nodes = len(data)
-    if order == 'lr':
-        vtx_data_lh, _, _ = roi_to_vtx(data[:int(n_nodes/2)], lh_annot_file)
-        vtx_data_rh, _, _ = roi_to_vtx(data[int(n_nodes/2):], rh_annot_file)
-    elif order == 'rl':
-        vtx_data_lh, _, _ = roi_to_vtx(data[int(n_nodes/2):], rh_annot_file)
-        vtx_data_rh, _, _ = roi_to_vtx(data[:int(n_nodes/2)], lh_annot_file)
-
-    # get colorbar axes
-    if cblim is None:
-        if cmap == 'coolwarm' or cmap == 'vlag' or cmap == 'icefire':
-            vmax = np.round(np.nanmax(np.abs(data)), 1)
-            vmin = -vmax
-        else:
-            vmax = np.nanmax(data)
-            vmin = np.nanmin(data)
-    else:
-        vmax = cblim[0]
-        vmin = cblim[1]
-
-    # dummy plot for colorbar
-    im = plt.imshow(np.random.random((2, 2)), cmap=cmap, vmin=vmin, vmax=vmax)
-    plt.close()
-
-    # main plot
-    f, ax = plt.subplots(2, 2, figsize=(2.5, 2.5), subplot_kw={'projection': '3d'})
-    plotting.plot_surf_roi(fsaverage['infl_left'], roi_map=vtx_data_lh,
-                         hemi='left', view='lateral',
-                         vmin=vmin, vmax=vmax,
-                         bg_map=fsaverage['sulc_left'],
-                         bg_on_data=True, axes=ax[0, 0],
-                         darkness=.5, cmap=cmap, colorbar=False)
-
-    plotting.plot_surf_roi(fsaverage['infl_right'], roi_map=vtx_data_rh,
-                         hemi='right', view='lateral',
-                         vmin=vmin, vmax=vmax,
-                         bg_map=fsaverage['sulc_right'],
-                         bg_on_data=True, axes=ax[0, 1],
-                         darkness=.5, cmap=cmap, colorbar=False)
-
-    plotting.plot_surf_roi(fsaverage['infl_left'], roi_map=vtx_data_lh,
-                         hemi='left', view='medial',
-                         vmin=vmin, vmax=vmax,
-                         bg_map=fsaverage['sulc_left'],
-                         bg_on_data=True, axes=ax[1, 0],
-                         darkness=.5, cmap=cmap, colorbar=False)
-
-    plotting.plot_surf_roi(fsaverage['infl_right'], roi_map=vtx_data_rh,
-                         hemi='right', view='medial',
-                         vmin=vmin, vmax=vmax,
-                         bg_map=fsaverage['sulc_right'],
-                         bg_on_data=True, axes=ax[1, 1],
-                         darkness=.5, cmap=cmap, colorbar=False)
-
-    plt.subplots_adjust(wspace=-0.075, hspace=-0.3)
-    cb_ax = f.add_axes([0.9, 0.25, 0.05, 0.5])  # add colorbar
-    f.colorbar(im, cax=cb_ax)
-    if title_str:
-        f.suptitle(title_str)
-    plotting.show()
-
-
-def annotate_significance_brackets(ax, pairs, labels, y0=None, y_step=None,
-                                   tick_frac=0.02, text_pad_frac=0.0,
-                                   line_width=0.8, color='black', fontsize=7,
-                                   expand_ylim=True):
-    """Draw stacked significance brackets between pairs of categorical x-positions.
-
-    Each bracket is a flat-topped line spanning two x-positions with a label
-    (e.g. ``'***'``, ``'ns'``) centered above it. Brackets are stacked bottom-to-top in
-    the order given, so pass them shortest-span-first to avoid overlap.
-
-    Parameters
-    ----------
-    ax : matplotlib.axes.Axes
-        Target axes with a categorical x-axis (integer positions 0..n-1, as
-        produced by seaborn violin/box plots).
-    pairs : sequence of (float, float)
-        (x1, x2) index positions to connect, one per bracket.
-    labels : sequence of str
-        Text centered above each bracket; same length and order as ``pairs``.
-    y0 : float or None
-        Data-y of the lowest bracket. Defaults to the current top ylim, which
-        already clears any data/annotations drawn so far.
-    y_step : float or None
-        Vertical gap (data units) between successive brackets. Defaults to 8% of
-        the current y-range.
-    tick_frac : float, default=0.02
-        Length of the downward end-ticks, as a fraction of the y-range.
-    text_pad_frac : float, default=0.005
-        Gap between a bracket line and its label, as a fraction of the y-range.
-    line_width, color, fontsize : styling of the brackets and labels.
-    expand_ylim : bool, default=True
-        Raise the top ylim so the tallest bracket and its label fit.
-
-    Returns
-    -------
-    ax : matplotlib.axes.Axes
-    """
-    if len(pairs) != len(labels):
-        raise ValueError("`pairs` and `labels` must have the same length")
-
-    ymin, ymax = ax.get_ylim()
-    yr = ymax - ymin
-    if y0 is None:
-        y0 = ymax
-    if y_step is None:
-        y_step = 0.08 * yr
-    tick = tick_frac * yr
-
-    top = y0
-    for k, ((x1, x2), label) in enumerate(zip(pairs, labels)):
-        y = y0 + k * y_step
-        ax.plot([x1, x1, x2, x2], [y - tick, y, y, y - tick],
-                lw=line_width, color=color, clip_on=False)
-        ax.text((x1 + x2) / 2, y + text_pad_frac * yr, label,
-                ha='center', va='bottom', color=color, fontsize=fontsize,
-                clip_on=False)
-        top = y
-
-    if expand_ylim:
-        ax.set_ylim(ymin, max(ymax, top + 0.05 * yr))
-
-    return ax
-
-    return f

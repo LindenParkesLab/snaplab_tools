@@ -19,8 +19,8 @@ Modules
     Publication-figure helpers: correlation plots, cortical surface rendering, colormaps.
 :mod:`~snaplab_tools.prediction`
     Cross-validated regression with permutation testing.
-:mod:`~snaplab_tools.signal`, :mod:`~snaplab_tools.derivs`, :mod:`~snaplab_tools.decomposition`
-    Time-series filtering, autocorrelation/functional-connectivity derivatives, NaN-safe PCA.
+:mod:`~snaplab_tools.signal`, :mod:`~snaplab_tools.derivs`
+    Time-series filtering, and autocorrelation/functional-connectivity derivatives.
 :mod:`~snaplab_tools.brainmaps`
     Loaders for published cortical maps (cytoarchitecture, microstructure, tau, S-A axis).
 :mod:`~snaplab_tools.utils`

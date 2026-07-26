@@ -31,6 +31,8 @@ from sklearn.decomposition import PCA
 import copy
 from tqdm import tqdm
 
+from snaplab_tools.stats import compute_stat
+
 __all__ = [
     'Regression',
     'corr_true_pred',
@@ -250,15 +252,15 @@ def corr_true_pred(y_true, y_pred):
     Returns
     -------
     float
-        Pearson r (the p-value is discarded).
+        Pearson r (the p-value is discarded). NaN for a fold with fewer than three observations,
+        where a correlation is undefined -- scipy would silently report r=1.0 there.
     """
     if type(y_true) == np.ndarray:
         y_true = y_true.flatten()
     if type(y_pred) == np.ndarray:
         y_pred = y_pred.flatten()
 
-    r, p = sp.stats.pearsonr(y_true, y_pred)
-    return r
+    return compute_stat(y_true, y_pred, 'pearson', return_p=False)[0]
 
 
 def root_mean_squared_error(y_true, y_pred):
