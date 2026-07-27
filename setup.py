@@ -13,6 +13,14 @@ setup(
     version=version,
     packages=find_packages(),
     python_requires=">=3.9",
+    # Bundled third-party atlases keep their own terms -- see THIRD_PARTY_NOTICES.md.
+    license="BSD-3-Clause",
+    classifiers=[
+        "License :: OSI Approved :: BSD License",
+        "Intended Audience :: Science/Research",
+        "Topic :: Scientific/Engineering :: Medical Science Apps.",
+        "Programming Language :: Python :: 3",
+    ],
     install_requires=[
         "numpy",
         "scipy",

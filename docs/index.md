@@ -11,10 +11,11 @@ sd_hide_title: true
 ```{rubric} snaplab_tools
 ```
 
-Analysis tools for human neuroimaging, used by the [SNaP Lab](https://github.com/LindenParkesLab).
+Analysis tools used by the [SNaP Lab](https://github.com/LindenParkesLab).
 
-Spatial null models, GAM fitting and change-point detection, correlation statistics, network
-topology, cross-validated prediction, and publication figures.
+These tools are a constant work in progress, developed around the lab's own needs. Pull requests
+are welcome — bug fixes and improvements to what is already here especially. However, we are not taking
+feature requests from outside the lab at this time.
 :::
 ::::
 

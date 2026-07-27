@@ -66,6 +66,19 @@ stale output behind. Open `docs/_build/html/index.html` when it finishes.
 
 ## Contributing
 
-Found a missing dependency, a bug, or something undocumented? Open an issue or a pull request. See
-the [contributing guide](https://snaplab-tools.readthedocs.io/en/latest/contributing.html) for
+These tools are developed around the lab's own needs. Pull requests are welcome — bug fixes,
+missing dependencies, and improvements to what is already here especially. We are not taking
+feature requests.
+
+See the [contributing guide](https://snaplab-tools.readthedocs.io/en/latest/contributing.html) for
 docstring conventions and how to add a tutorial.
+
+## Licence
+
+The source code in this repository is released under the
+[BSD 3-Clause License](LICENSE), the usual choice in this corner of the field — the same licence
+as nilearn, MNE-Python and BrainSpace.
+
+The brain atlases and surface files redistributed here carry their own terms (all permissive, and
+compatible with the above). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the full list
+and the papers to cite if you use them.
