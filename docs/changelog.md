@@ -6,8 +6,12 @@ First versioned release, alongside the first published documentation.
 
 ### Added
 
-- Sphinx documentation site with an API reference covering every public function. Tutorials are in
-  progress.
+- Sphinx documentation site with an API reference covering every public function, plus runnable
+  tutorials executed as part of the build. More tutorials are being added.
+- {mod}`snaplab_tools.datasets`: synthetic data generators built on the real Schaefer geometry
+  bundled with the package. Brain maps with genuine spatial autocorrelation, subject cohorts,
+  structural connectomes, developmental trajectories with a known change point, and BOLD-like time
+  series. These make the tutorials runnable anywhere and serve as test fixtures.
 - `__all__` on every module, defining the public API explicitly.
 - `docs`, `surface`, and `changepoint` optional dependency extras.
 
@@ -34,7 +38,8 @@ First versioned release, alongside the first published documentation.
   and no longer draws a background grid.
 - Documentation moved from a `docs/README.md` stub to a full Sphinx site. The old tutorial notebooks
   in `scripts/` were removed: they depended on a hardcoded local path and private HCP data, so
-  nobody but the author could run them. Replacements are being written against synthetic data.
+  nobody but the author could run them. Their replacements live in `docs/tutorials/`, run on
+  synthetic data, and are executed when the docs are built.
 
 ### Fixed
 

@@ -40,6 +40,9 @@ PAGES = [
         ("snaplab_tools.signal", "Filtering"),
         ("snaplab_tools.derivs", "Derived measures"),
     ]),
+    ("datasets", "Example datasets", "snaplab_tools.datasets", [
+        ("snaplab_tools.datasets", None),
+    ]),
     ("brainmaps", "Brain maps", "snaplab_tools.brainmaps", [
         ("snaplab_tools.brainmaps", None),
     ]),
@@ -105,7 +108,7 @@ def build_index():
         "page opens with a short orientation; follow a name through for the full signature,",
         "parameters, and notes.",
         "",
-        "Worked examples are being written; see [tutorials](../tutorials/index.md).",
+        "For worked examples rather than signatures, see the [tutorials](../tutorials/index.md).",
         "",
         "```{toctree}",
         ":maxdepth: 2",

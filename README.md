@@ -30,14 +30,18 @@ separate list to keep in sync.
 ## Quick start
 
 Testing a correlation between two brain maps against a spatial null, using the Schaefer geodesic
-distance matrices bundled with the package:
+distance matrices bundled with the package. This runs as written — swap the two synthetic maps for
+your own `(400,)` vectors in Schaefer 400 7-network order:
 
 ```python
 import matplotlib.pyplot as plt
+from snaplab_tools.datasets import make_spatial_map, make_correlated_map
 from snaplab_tools.nulls import generate_surrogates, corr_with_null
 from snaplab_tools.plotting.plotting import plot_correlation
 
-# x and y are (400,) parcellated maps in Schaefer 400 7-network order
+x = make_spatial_map(n_regions=400, seed=0)
+y = make_correlated_map(x, rho=0.35, seed=1)
+
 surrogates = generate_surrogates(y, n_perms=5000)
 result = corr_with_null(x, y, surrogates, method="spearman")
 print(f"rho = {result['r']:.2f}, p_smash = {result['p_smash']:.3f}")

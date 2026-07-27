@@ -42,9 +42,8 @@ setup(
             "surfplot",
             "brainspace",
         ],
-        # Building the Sphinx documentation site. ipykernel/jupyter-cache are what execute
-        # notebook-backed pages during the build; nothing uses them yet, but the tutorials being
-        # rewritten will, and myst-nb is configured for it.
+        # Building the Sphinx documentation site. ipykernel/jupyter-cache are required because
+        # the tutorial notebooks are executed during the build.
         "docs": [
             "sphinx>=7.2",
             "myst-nb>=1.1",

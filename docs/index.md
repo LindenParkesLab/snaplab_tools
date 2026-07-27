@@ -48,7 +48,8 @@ Requirements, optional extras, and the extra setup needed for cortical surface r
 :link: tutorials/index
 :link-type: doc
 
-Longer worked examples for each part of the package. Being rewritten.
+Runnable worked examples. Every one executes on synthetic data, so you can follow along without
+access to any particular dataset.
 :::
 ::::
 

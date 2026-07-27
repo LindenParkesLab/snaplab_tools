@@ -10,11 +10,10 @@ make html
 
 Then open `docs/_build/html/index.html`.
 
-There are currently no executable pages, so the build is fast. Once tutorials return they are run
-during the build, with results cached in `_build/.jupyter_cache` so subsequent builds only re-run
-pages whose content changed. `make clean` clears that cache, the built HTML, **and** the generated
-API stubs in `api/generated/` — use it rather than `rm -rf _build`, or stubs for a removed function
-linger and trip the strict build.
+Tutorial notebooks are executed during the build, so the first run is slow. Results are cached in
+`_build/.jupyter_cache`, so subsequent builds only re-run notebooks whose content changed. `make
+clean` clears that cache, the built HTML, **and** the generated API stubs in `api/generated/` — use
+it rather than `rm -rf _build`, or stubs for a removed function linger and trip the strict build.
 
 To reproduce what CI checks:
 
@@ -58,15 +57,19 @@ Cross-reference with `` {func}`~snaplab_tools.module.name` `` so the docs link u
 
 ## Adding a tutorial
 
-Tutorials are being rewritten and are not currently in the repository; `docs/tutorials/index.md` is
-a placeholder. When they return, these are the rules that keep them working:
+Tutorials live in `docs/tutorials/` as `.ipynb` files, listed in the toctree in
+`docs/tutorials/index.md`. These are the rules that keep them working:
 
-**Use synthetic data.** Every tutorial must run on a machine with no access to lab data — that is
-what lets them execute during the docs build, which in turn is what stops them going stale. The
-geodesic distance matrices and parcellations bundled in `snaplab_tools/nulls/resources/` are enough
-to generate realistic brain maps offline: smoothing white noise with an exponential kernel over the
-geodesic distances gives a map with the spatial autocorrelation real cortical data has, which
-matters because a spatial null model has nothing to preserve without it.
+**Use synthetic data from {mod}`snaplab_tools.datasets`.** Every tutorial must run on a machine
+with no access to lab data — that is what lets them execute during the docs build, which in turn is
+what stops them going stale. If you need a data shape the module does not generate, add a generator
+to `snaplab_tools/datasets.py` rather than reaching for a file path or hand-rolling it in the
+notebook.
+
+Its maps are built over the real Schaefer geometry bundled in `snaplab_tools/nulls/resources/`, so
+they carry genuine spatial autocorrelation. That matters: a spatial null model has nothing to
+preserve if you hand it `np.random.randn(400)`, so a tutorial built on plain noise would
+demonstrate the machinery while misrepresenting what it does.
 
 **Commit notebooks with outputs stripped.** Outputs are regenerated at build time, and committed
 ones only bloat diffs:

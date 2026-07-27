@@ -8,7 +8,8 @@ Modules
 -------
 :mod:`~snaplab_tools.stats`
     Correlation and group statistics -- partial correlations, tests for comparing dependent
-    correlations (Steiger, bootstrap, permutation), brain-map coupling and decoupling tests.
+    correlations (Steiger, bootstrap, permutation), brain-map coupling and decoupling tests,
+    FDR correction, winsorizing, and NaN-tolerant PCA.
 :mod:`~snaplab_tools.gams`
     Penalized-spline GAM fitting, derivative signals, change-point detection, bootstrap engine.
 :mod:`~snaplab_tools.nulls`
@@ -23,8 +24,12 @@ Modules
     Time-series filtering, and autocorrelation/functional-connectivity derivatives.
 :mod:`~snaplab_tools.brainmaps`
     Loaders for published cortical maps (cytoarchitecture, microstructure, tau, S-A axis).
+:mod:`~snaplab_tools.datasets`
+    Synthetic data on the real Schaefer geometry bundled with the package -- brain maps with
+    genuine spatial autocorrelation, subject cohorts, connectomes, developmental curves. Powers
+    the tutorials and makes a runnable example possible without access to any dataset.
 :mod:`~snaplab_tools.utils`
-    Parcellation fetching, parcel-wise averaging, winsorizing, FDR, nuisance regression.
+    Parcellation fetching, parcel-wise averaging, and small numerics.
 
 Documentation lives at https://snaplab-tools.readthedocs.io.
 """
