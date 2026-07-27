@@ -60,10 +60,10 @@ By default the plotting module looks under
 export SCHAEFER_ANNOT_DIR=/path/to/Parcellations/FreeSurfer5.3
 ```
 
-:::{important}
-`SCHAEFER_ANNOT_DIR` is read once, when `snaplab_tools.plotting.plotting` is first imported.
-Setting it after the import has no effect — set it before you start Python, or with `os.environ`
-at the very top of your script.
+:::{note}
+`SCHAEFER_ANNOT_DIR` is read on every call, so setting it with `os.environ` part-way through a
+session works — including after the package has been imported. It used to be captured at import
+time, which meant a late `os.environ` assignment silently did nothing.
 :::
 
 ## Building geodesic distance matrices yourself

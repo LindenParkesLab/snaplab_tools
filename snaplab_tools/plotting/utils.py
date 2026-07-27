@@ -5,7 +5,7 @@ Useful on their own, not just as internals.
 Style and colour
     :func:`set_plotting_params` sets the lab's matplotlib defaults (8pt fonts, editable Type-42
     PDF text, seaborn paper style) -- call it once at the top of a notebook.
-    :func:`get_my_colors` returns the named lab palette.
+    :func:`get_snap_colors` returns the named lab palette.
 
 Colormaps
     :func:`make_diverging_cmap` and :func:`make_sequential_cmap` build and register matplotlib
@@ -40,7 +40,7 @@ from snaplab_tools.stats import significance_stars
 
 __all__ = [
     'set_plotting_params',
-    'get_my_colors',
+    'get_snap_colors',
     'make_diverging_cmap',
     'make_sequential_cmap',
     'register_custom_colormaps',
@@ -93,7 +93,7 @@ def set_plotting_params(format='png'):
     plt.rcParams['svg.fonttype'] = 'none'
 
 
-def get_my_colors(normalize=True, as_list=False, cat_trio=False):
+def get_snap_colors(normalize=True, as_list=False, cat_trio=False):
     """Return the lab's named colour palette.
 
     Parameters
@@ -119,25 +119,25 @@ def get_my_colors(normalize=True, as_list=False, cat_trio=False):
     # new age: rgba(217,206,209,255) / #d9ced1
     # starry night blue: rgba(48,65,121,255) / #304179
     # north sea green: rgba(0,111,116,255) / #006f74
-    my_colors = dict()
-    my_colors['raspberry_blush'] = [234, 86, 81]
-    my_colors['starry_night_blue'] = [48, 65, 121]
-    my_colors['north_sea_green'] = [0, 111, 116]
+    snap_colors = dict()
+    snap_colors['raspberry_blush'] = [234, 86, 81]
+    snap_colors['starry_night_blue'] = [48, 65, 121]
+    snap_colors['north_sea_green'] = [0, 111, 116]
     if not cat_trio:
-        my_colors['conch_shell'] = [238, 186, 169]
-        my_colors['cinnamon'] = [165, 74, 54]
-        my_colors['wenge'] = [63, 44, 41]
-        my_colors['savannah_green'] = [194, 158, 62]
-        my_colors['new_age'] = [217, 206, 209]
+        snap_colors['conch_shell'] = [238, 186, 169]
+        snap_colors['cinnamon'] = [165, 74, 54]
+        snap_colors['wenge'] = [63, 44, 41]
+        snap_colors['savannah_green'] = [194, 158, 62]
+        snap_colors['new_age'] = [217, 206, 209]
 
     if normalize:
-        for key in my_colors.keys():
-            my_colors[key] = [color / 255 for color in my_colors[key]]
+        for key in snap_colors.keys():
+            snap_colors[key] = [color / 255 for color in snap_colors[key]]
 
     if as_list:
-        my_colors = list(my_colors.values())
+        snap_colors = list(snap_colors.values())
 
-    return my_colors
+    return snap_colors
 
 
 def roi_to_vtx(roi_data, annot_file):
@@ -581,20 +581,24 @@ def style_correlation_axis(ax, x_label, y_label, title=None,
 # Every map is generated the same way, from a (low, mid, high) hex triple. The two hue poles keep an
 # OKLab dE >= 8 under deuteranope / protanope / tritanope simulation, so a diverging quantity's sign
 # stays readable for colorblind viewers; the midpoint is a neutral grey (a diverging map must never
-# place a hue at the midpoint). 'sydnor_sa' is the fixed S-A axis identity map (orange -> purple).
+# place a hue at the midpoint). 'snap_sydnor_sa' is the fixed S-A axis identity map (orange -> purple).
+#
+# The 'snap_' prefix is not decoration. Matplotlib's colormap registry is process-global and first
+# registration wins, so an unprefixed name can be taken by another library before we get to it --
+# nilearn (imported by this module) registers its own 'blue_orange' and 'blue_red', which used to
+# shadow two of these presets silently. The prefix makes the names ours.
 _DIVERGING_PRESETS = {
     # Ordered most colorblind-safe first (min CVD OKLab dE, ~x100; check any pair with cvd_min_delta_e).
-    'navy_gold':       ('#1A3A6B', '#EDEDED', '#C99700'),   # ~38 (dark-bg friendly)
-    'indigo_gold':     ('#3B4CC0', '#F7F7F7', '#E0A800'),   # ~35 (very robust)
-    'purple_orange':   ('#5E3C99', '#F7F7F7', '#E66101'),   # ~29
-    'sydnor_sa':       ('#FFA500', '#F7F7F7', '#8A2BE2'),   # ~28 (S-A axis identity map: orange -> purple)
-    'blue_orange':     ('#2166AC', '#F7F7F7', '#E08214'),   # ~27
-    'blue_vermillion': ('#0072B2', '#F7F7F7', '#D55E00'),   # ~22 (Okabe-Ito pair)
-    'blue_red':        ('#2166AC', '#F7F7F7', '#B2182B'),   # ~21
-    'blue_brown':      ('#2166AC', '#F7F7F7', '#8C510A'),   # ~21 (BrBG-style)
-    'blue_pink':       ('#4C72B0', '#F7F7F7', '#C51B7D'),   # ~10 (PiYG pink; CB floor)
+    'snap_navy_gold':       ('#1A3A6B', '#EDEDED', '#C99700'),   # ~38 (dark-bg friendly)
+    'snap_indigo_gold':     ('#3B4CC0', '#F7F7F7', '#E0A800'),   # ~35 (very robust)
+    'snap_purple_orange':   ('#5E3C99', '#F7F7F7', '#E66101'),   # ~29
+    'snap_sydnor_sa':       ('#FFA500', '#F7F7F7', '#8A2BE2'),   # ~28 (S-A axis identity map: orange -> purple)
+    'snap_blue_orange':     ('#2166AC', '#F7F7F7', '#E08214'),   # ~27
+    'snap_blue_vermillion': ('#0072B2', '#F7F7F7', '#D55E00'),   # ~22 (Okabe-Ito pair)
+    'snap_blue_red':        ('#2166AC', '#F7F7F7', '#B2182B'),   # ~21
+    'snap_blue_brown':      ('#2166AC', '#F7F7F7', '#8C510A'),   # ~21 (BrBG-style)
+    'snap_blue_pink':       ('#4C72B0', '#F7F7F7', '#C51B7D'),   # ~10 (PiYG pink; CB floor)
 }
-1
 
 # Machado-2009 dichromacy simulation matrices (severity 1.0), applied to *linear* sRGB.
 _CVD_MATRICES = {
@@ -631,7 +635,7 @@ def cvd_min_delta_e(color_a, color_b):
 
     Example
     -------
-    >>> cvd_min_delta_e('#2166AC', '#B2182B')   # blue_red poles
+    >>> cvd_min_delta_e('#2166AC', '#B2182B')   # snap_blue_red poles
     21.1
     """
     a = _srgb_to_linear(mcolors.to_rgb(color_a))
@@ -649,11 +653,15 @@ def _register_with_reverse(cmap, name):
 
     Custom colormaps -- unlike matplotlib built-ins -- do not get an automatic '_r' variant, so we
     register it explicitly, giving every custom map the same reversible `cmap='<name>_r'` convention.
+
+    A name that is already taken is left alone rather than overwritten. That is what makes repeat
+    calls cheap, and it is why the presets carry a 'snap_' prefix: matplotlib's registry is global,
+    so an unprefixed name another library claimed first would shadow ours without a word.
     """
     for cm, nm in ((cmap, name), (cmap.reversed(), name + '_r')):
         try:
             plt.colormaps.register(cmap=cm, name=nm)
-        except Exception:
+        except ValueError:
             pass
 
 

@@ -61,7 +61,7 @@ def _schaefer_annot_dir():
     )
 
 from snaplab_tools.stats import compute_stat, get_null_p, significance_stars
-from snaplab_tools.plotting.utils import get_my_colors, process_input_data, \
+from snaplab_tools.plotting.utils import get_snap_colors, process_input_data, \
     create_correlation_text, add_stats_annotation, create_null_inset, style_correlation_axis, \
         format_pvalue
 
@@ -853,7 +853,7 @@ def null_plot(observed, null, xlabel, ax, p_val=None, add_text=True, line_color=
         Use a KDE instead of a histogram for the null.
     """
     if line_color is None:
-        my_colors = get_my_colors()
+        my_colors = get_snap_colors()
         line_color = my_colors['north_sea_green']
         # color_blue = sns.color_palette("Set1")[1]
         # color_red = sns.color_palette("Set1")[0]
@@ -1540,7 +1540,7 @@ def paired_line_plot(x, y_1, y_2, y_1_label, y_2_label, ax, add_summary_line='me
     plot_diff : bool
         Plot y_2 - y_1 instead of the two families separately.
     """
-    my_colors = get_my_colors(cat_trio=True, as_list=True)
+    my_colors = get_snap_colors(cat_trio=True, as_list=True)
 
     # y_1 = y_1.mean(axis=0).mean(axis=0)
     # y_2 = y_2.mean(axis=0).mean(axis=0)

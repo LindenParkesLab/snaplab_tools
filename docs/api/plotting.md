@@ -36,7 +36,7 @@ Publication-figure helpers.
    :nosignatures:
 
    set_plotting_params
-   get_my_colors
+   get_snap_colors
    make_diverging_cmap
    make_sequential_cmap
    register_custom_colormaps

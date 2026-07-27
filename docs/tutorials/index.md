@@ -15,6 +15,7 @@ meaningful rather than merely executable.
 :maxdepth: 1
 
 plotting_correlations
+colormaps_and_style
 ```
 
 :::{note}

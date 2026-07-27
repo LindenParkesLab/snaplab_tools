@@ -9,7 +9,7 @@ import os
 import matplotlib.pyplot as plt
 import pytest
 
-from snaplab_tools.plotting.utils import set_plotting_params
+from snaplab_tools.plotting.utils import register_custom_colormaps, set_plotting_params
 from snaplab_tools.utils import get_parcelwise_average_nifti, get_parcelwise_average_surface
 
 
@@ -83,6 +83,34 @@ def test_set_plotting_params_leaves_the_font_cache_alone():
     existed = os.path.isdir(cache_dir)
     set_plotting_params()
     assert os.path.isdir(cache_dir) == existed
+
+
+def test_registered_presets_are_ours_and_not_another_library_s():
+    """`cmap='<preset>'` must resolve to the vetted preset, not a same-named map from elsewhere.
+
+    Matplotlib's colormap registry is process-global and first registration wins, silently. The
+    presets used to be called 'blue_orange' and 'blue_red' among others, and importing nilearn --
+    which snaplab_tools.plotting.utils does at import time -- registers colormaps under both of
+    those names, so two presets resolved to nilearn's maps instead. Hence the 'snap_' prefix.
+    """
+    import matplotlib as mpl
+
+    presets = register_custom_colormaps()
+    assert presets, 'no colormaps registered'
+
+    for name, cmap in presets.items():
+        assert name.startswith('snap_'), f'{name} is unprefixed and can be claimed by any library'
+        registered = mpl.colormaps[name]
+        assert registered(0.0) == cmap(0.0) and registered(1.0) == cmap(1.0), (
+            f"cmap='{name}' resolves to a different colormap than the preset of that name"
+        )
+        assert mpl.colormaps[name + '_r'](0.0) == cmap(1.0), f'{name}_r is not the reverse of {name}'
+
+
+def test_register_custom_colormaps_is_idempotent():
+    """Documented as safe to call at the top of every notebook, so a second call must not raise."""
+    register_custom_colormaps()
+    register_custom_colormaps()
 
 
 @pytest.mark.parametrize('func,bad_file,expected', [
