@@ -167,3 +167,6 @@ cython_debug/
 results/
 packages/
 scripts/scratch/
+
+VSCode
+snaplab_tools.code-workspace
