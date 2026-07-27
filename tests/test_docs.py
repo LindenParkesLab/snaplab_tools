@@ -113,23 +113,28 @@ def test_every_tutorial_is_in_the_toctree():
     assert not orphans, f"tutorials not listed in tutorials/index.md: {orphans}"
 
 
-def test_tutorials_have_no_committed_outputs():
-    """Notebooks are committed without outputs; they are executed at build time.
+def test_tutorials_have_committed_outputs():
+    """Notebooks must ship with their outputs.
 
-    Committed outputs bloat diffs and can disagree with what the code now produces.
+    The docs build renders rather than executes them (nb_execution_mode = "off"), so a notebook
+    committed with cleared outputs publishes as a page of code and no results. Executing them is
+    CI's job -- see .github/workflows/tutorials.yml.
+
+    A cell with no output at all is fine; plenty of cells legitimately produce none. What this
+    catches is a notebook where *nothing* was executed.
     """
     import json
 
     offenders = []
     for path in _tutorial_notebooks():
         notebook = json.loads(path.read_text())
-        for cell in notebook["cells"]:
-            if cell.get("cell_type") == "code" and cell.get("outputs"):
-                offenders.append(path.name)
-                break
+        code_cells = [c for c in notebook["cells"] if c.get("cell_type") == "code"]
+        if code_cells and not any(c.get("outputs") for c in code_cells):
+            offenders.append(path.name)
+
     assert not offenders, (
-        f"notebooks have committed outputs: {offenders}. Clear them with "
-        f"`jupyter nbconvert --clear-output --inplace docs/tutorials/*.ipynb`."
+        f"notebooks have no committed outputs: {offenders}. Run them and save, or use "
+        f"`jupyter nbconvert --execute --inplace docs/tutorials/<name>.ipynb`."
     )
 
 

@@ -1,39 +1,28 @@
 # Read the Docs build configuration.
 # https://docs.readthedocs.io/en/stable/config-file/v2.html
+#
+# This build only renders the documentation. Tutorial notebooks ship with their outputs already
+# committed (see nb_execution_mode in docs/conf.py), so nothing is executed here and the build
+# needs no kernel, no VTK, no X server, and no downloads beyond the Python packages themselves.
+#
+# The package is still installed because autodoc imports it to read docstrings.
 version: 2
 
 build:
   os: ubuntu-24.04
   tools:
     python: "3.11"
-  apt_packages:
-    # VTK (via brainspace/surfplot) needs OpenGL and an X display even to render offscreen.
-    # docs/conf.py starts Xvfb on :99 when it detects the Read the Docs environment.
-    - libgl1
-    - libglx-mesa0
-    - libxrender1
-    - libxt6
-    - xvfb
-  jobs:
-    post_install:
-      # Schaefer FreeSurfer annotation files, needed by the cortical-surface tutorial.
-      # snaplab_tools.plotting reads SCHAEFER_ANNOT_DIR (set in docs/conf.py) to find them; these
-      # come from the same CBIG repository that snaplab_tools.utils.load_schaefer_parc uses.
-      - mkdir -p $HOME/Schaefer2018_LocalGlobal/Parcellations/FreeSurfer5.3/fsaverage5/label
-      - |
-        for hemi in lh rh; do
-          curl -fsSL -o $HOME/Schaefer2018_LocalGlobal/Parcellations/FreeSurfer5.3/fsaverage5/label/${hemi}.Schaefer2018_400Parcels_7Networks_order.annot \
-            "https://github.com/ThomasYeoLab/CBIG/raw/master/stable_projects/brain_parcellation/Schaefer2018_LocalGlobal/Parcellations/FreeSurfer5.3/fsaverage5/label/${hemi}.Schaefer2018_400Parcels_7Networks_order.annot"
-        done
 
 python:
   install:
     - method: pip
       path: .
       extra_requirements:
+        # `docs` only. The `surface` extra (surfplot/brainspace, which pull ~200 MB of VTK) is
+        # deliberately absent: those imports are lazy, inside the functions that need them, so
+        # autodoc documents the surface-plotting API without them installed. `changepoint`
+        # (ruptures) is likewise only needed to run the GAM tutorial, which happens in CI.
         - docs
-        - surface
-        - changepoint
 
 sphinx:
   configuration: docs/conf.py

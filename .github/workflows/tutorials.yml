@@ -1,0 +1,126 @@
+name: tests and tutorials
+
+# The documentation build on Read the Docs only renders notebooks; it does not execute them.
+# This workflow is what actually guarantees the tutorials still run against the current code, so
+# a broken API is caught here rather than surfacing as a stale page nobody noticed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[docs,changepoint]" pytest
+
+      - name: Run tests
+        run: pytest tests/ -q
+        env:
+          MPLBACKEND: Agg
+
+  tutorials:
+    name: Execute tutorials
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # Only needed once a tutorial renders cortical surfaces through VTK. Cheap to leave in
+      # place, and it keeps the surface tutorial working the day it returns.
+      - name: System libraries for offscreen VTK
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libgl1 libglx-mesa0 libxrender1 libxt6 xvfb
+
+      - name: Install
+        run: pip install -e ".[docs,surface,changepoint]"
+
+      # The surface-plotting tutorial needs Schaefer FreeSurfer annotations, which are not bundled
+      # with the package. Fetched here rather than at docs-build time so a flaky download breaks
+      # CI, not the published documentation.
+      - name: Fetch Schaefer annotations
+        run: |
+          DEST="$HOME/Schaefer2018_LocalGlobal/Parcellations/FreeSurfer5.3/fsaverage5/label"
+          mkdir -p "$DEST"
+          BASE="https://github.com/ThomasYeoLab/CBIG/raw/master/stable_projects/brain_parcellation/Schaefer2018_LocalGlobal/Parcellations/FreeSurfer5.3/fsaverage5/label"
+          for hemi in lh rh; do
+            curl -fsSL --retry 3 --retry-delay 5 \
+              -o "$DEST/${hemi}.Schaefer2018_400Parcels_7Networks_order.annot" \
+              "$BASE/${hemi}.Schaefer2018_400Parcels_7Networks_order.annot"
+          done
+
+      # Deliberately does NOT set MPLBACKEND. Forcing Agg makes plt.show() discard the figure
+      # instead of emitting it as cell output, so notebooks would execute but produce no images.
+      # ipykernel's default (matplotlib_inline) is already headless-safe.
+      - name: Execute every tutorial
+        run: |
+          xvfb-run --auto-servernum python - <<'PY'
+          import glob, os, sys, time
+          import nbformat
+          from nbclient import NotebookClient
+          from nbclient.exceptions import CellExecutionError
+
+          paths = sorted(glob.glob("docs/tutorials/*.ipynb"))
+          if not paths:
+              print("No tutorials to execute.")
+              sys.exit(0)
+
+          failures = []
+          for path in paths:
+              nb = nbformat.read(path, as_version=4)
+              client = NotebookClient(
+                  nb, timeout=900, kernel_name="python3",
+                  resources={"metadata": {"path": os.path.dirname(path)}},
+              )
+              started = time.time()
+              try:
+                  client.execute()
+                  print(f"PASS  {time.time() - started:6.1f}s  {os.path.basename(path)}", flush=True)
+              except CellExecutionError as exc:
+                  failures.append(os.path.basename(path))
+                  print(f"FAIL  {time.time() - started:6.1f}s  {os.path.basename(path)}", flush=True)
+                  print(str(exc)[-2500:], flush=True)
+
+          if failures:
+              sys.exit(f"\nTutorials failed to execute: {', '.join(failures)}")
+          print(f"\nAll {len(paths)} tutorial(s) executed cleanly.")
+          PY
+
+  docs:
+    name: Docs build (strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # Deliberately mirrors .readthedocs.yaml: `docs` extra only, no surface stack. If this
+      # passes and Read the Docs does not, the difference is in the RTD environment, not here.
+      - name: Install
+        run: pip install -e ".[docs]"
+
+      - name: Build with warnings as errors
+        run: python -m sphinx -b html docs docs/_build/html -W --keep-going

@@ -10,10 +10,9 @@ make html
 
 Then open `docs/_build/html/index.html`.
 
-Tutorial notebooks are executed during the build, so the first run is slow. Results are cached in
-`_build/.jupyter_cache`, so subsequent builds only re-run notebooks whose content changed. `make
-clean` clears that cache, the built HTML, **and** the generated API stubs in `api/generated/` — use
-it rather than `rm -rf _build`, or stubs for a removed function linger and trip the strict build.
+The build only *renders* notebooks; it does not execute them, so it is fast. `make clean` clears
+the built HTML **and** the generated API stubs in `api/generated/` — use it rather than
+`rm -rf _build`, or stubs for a removed function linger and trip the strict build.
 
 To reproduce what CI checks:
 
@@ -71,24 +70,40 @@ they carry genuine spatial autocorrelation. That matters: a spatial null model h
 preserve if you hand it `np.random.randn(400)`, so a tutorial built on plain noise would
 demonstrate the machinery while misrepresenting what it does.
 
-**Commit notebooks with outputs stripped.** Outputs are regenerated at build time, and committed
-ones only bloat diffs:
+**Commit notebooks *with* their outputs.** The published site renders what you commit — a notebook
+saved with cleared outputs publishes as a page of code and no results. Re-run it after any change:
 
 ```bash
-jupyter nbconvert --clear-output --inplace docs/tutorials/your_tutorial.ipynb
+jupyter nbconvert --execute --inplace docs/tutorials/your_tutorial.ipynb
 ```
 
-**Keep it under about two minutes.** The whole tutorial suite has to fit inside Read the Docs' build
-limit. Turn permutation and bootstrap counts down (`n_perms=500` rather than 5,000) and say in the
-text that you have done so, and why.
+Do **not** set `MPLBACKEND=Agg` when you do. It makes `plt.show()` discard the figure instead of
+emitting it as cell output, so the notebook executes cleanly and produces no images at all.
+ipykernel's default backend is already headless-safe.
 
-## Notebooks that cannot execute
+`tests/test_docs.py` fails on a notebook whose code cells produced no output at all, which catches
+the commonest version of this mistake.
 
-`nb_execution_excludepatterns` in `docs/conf.py` lists notebooks skipped during the build. It should
-stay empty. A notebook on that list ships whatever outputs happen to be committed, so it can
-silently drift out of agreement with the code — the exact failure mode executing them is meant to
-prevent. If something genuinely cannot run in the build environment, prefer restructuring it (or
-adding the missing dependency to the `docs` extra) over adding it to the list.
+**Keep it under about two minutes.** Turn permutation and bootstrap counts down (`n_perms=500`
+rather than 5,000) and say in the text that you have done so, and why. This is now a courtesy to
+CI rather than a hard build limit, but the suite still has to finish in reasonable time.
+
+## Where notebooks actually get executed
+
+Not during the docs build. `nb_execution_mode` is `"off"` in `docs/conf.py`, so Read the Docs only
+renders the committed outputs.
+
+Executing them is CI's job — `.github/workflows/tutorials.yml` runs every notebook on push and
+fails if any of them break. That is what stops a tutorial silently rotting when the API changes.
+
+The split exists because executing during the docs build meant every build installed the full
+scientific stack (VTK and brainspace alone are ~200 MB) and depended on several third-party
+downloads succeeding. A transient network failure took the documentation offline for reasons that
+had nothing to do with the documentation.
+
+One honest limitation: CI verifies that notebooks *run*, not that the committed outputs match what
+they would produce now. If you change code that affects a tutorial's numbers, re-run the notebook
+and commit the result — CI will not catch stale-but-valid output for you.
 
 ## Running the tests
 

@@ -108,20 +108,18 @@ myst_enable_extensions = [
 ]
 myst_heading_anchors = 3
 
-# "cache" re-executes only what changed, keyed on notebook content. On Read the Docs the cache
-# starts empty each build, so everything runs; locally it makes rebuilds cheap.
-nb_execution_mode = "cache"
-nb_execution_timeout = 600
-# A failing notebook must fail the build. Without this the page renders with a traceback in it and
-# nobody notices until a reader hits it.
-nb_execution_raise_on_error = True
-nb_execution_show_tb = True
+# Notebooks are NOT executed here -- they ship with their outputs committed, and this build only
+# renders them.
+#
+# Executing during the docs build meant every build installed the full scientific stack (VTK and
+# brainspace alone are ~200 MB) and depended on several third-party downloads succeeding, so a
+# transient network failure took the documentation offline for reasons unrelated to the docs.
+#
+# The check that notebooks still run has moved to CI (.github/workflows/tutorials.yml), which
+# executes every notebook on push and fails if any of them break. That keeps the guarantee while
+# making the published build cheap and reliable. See docs/contributing.md for the workflow.
+nb_execution_mode = "off"
 nb_merge_streams = True
-
-# Notebooks that cannot execute in this environment. Anything listed here ships with whatever
-# outputs are committed in the .ipynb, so it can silently go stale -- keep the list empty if at
-# all possible, and see docs/contributing.md before adding to it.
-nb_execution_excludepatterns = []
 
 # -- HTML output -------------------------------------------------------------------------------
 html_theme = "pydata_sphinx_theme"

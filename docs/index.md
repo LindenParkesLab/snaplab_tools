@@ -14,8 +14,7 @@ sd_hide_title: true
 Analysis tools used by the [SNaP Lab](https://github.com/LindenParkesLab).
 
 These tools are a constant work in progress, developed around the lab's own needs. Pull requests
-are welcome — bug fixes and improvements to what is already here especially. However, we are not taking
-feature requests from outside the lab at this time.
+are welcome if you want to contribute. However, we are not taking feature requests (e.g., through GitHub Issues) from outside the lab at this time.
 :::
 ::::
 
