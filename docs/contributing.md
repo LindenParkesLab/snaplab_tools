@@ -26,16 +26,6 @@ NumPy style, rendered by `sphinx.ext.napoleon`. Every name in a module's `__all_
 {mod}`snaplab_tools.gams` and {mod}`snaplab_tools.nulls` are the best examples in the codebase to
 copy from.
 
-Two things worth more effort than the parameter list:
-
-- **Say when the function is the wrong choice.** A reader deciding between
-  {func}`~snaplab_tools.stats.steiger_test` and
-  {func}`~snaplab_tools.stats.bootstrap_correlation_test` is better served by a sentence on the
-  tradeoff than by two immaculate parameter tables.
-- **Document surprising behaviour, not just intended behaviour.** NaN handling, whether an
-  intercept is added, whether results come back in shuffled order — these are what cost people
-  hours.
-
 Cross-reference with `` {func}`~snaplab_tools.module.name` `` so the docs link up.
 
 ## Adding a public function
