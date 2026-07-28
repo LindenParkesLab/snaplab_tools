@@ -851,33 +851,47 @@ def null_plot(observed, null, xlabel, ax, p_val=None, add_text=True, line_color=
         Colour of the observed line; defaults to the lab green.
     use_kde : bool
         Use a KDE instead of a histogram for the null.
+
+    Notes
+    -----
+    Both labels run vertically alongside the observed line, in its colour: the statistic and
+    p-value to its right in bold, the word 'observed' to its left. Reading bottom-to-top, so the
+    text sits in the empty upper tail of the distribution rather than over the bars, and takes
+    only its line height in horizontal space -- which is what lets it stay beside the line even
+    when the line is hard against the edge of the axes.
     """
     if line_color is None:
-        my_colors = get_snap_colors()
-        line_color = my_colors['north_sea_green']
-        # color_blue = sns.color_palette("Set1")[1]
-        # color_red = sns.color_palette("Set1")[0]
+        line_color = get_snap_colors()['north_sea_green']
+
+    null = np.asarray(null, dtype=float)
+    null = null[np.isfinite(null)]
+
     if use_kde is True:
-        sns.kdeplot(x=null, ax=ax, color='gray')
+        sns.kdeplot(x=null, ax=ax, color='0.45', fill=True, alpha=0.25, linewidth=1)
     else:
-        sns.histplot(x=null, ax=ax, color='gray')
-    ax.axvline(x=observed, ymax=1, clip_on=False, linewidth=1.5, color=line_color)
+        # Hairline white edges separate adjacent bars without adding ink, so the distribution
+        # reads as bars rather than one grey mass.
+        sns.histplot(x=null, ax=ax, color='0.75', edgecolor='white', linewidth=0.4)
+
+    ax.axvline(x=observed, linewidth=1.5, color=line_color, zorder=3)
     ax.grid(False)
     sns.despine(right=True, top=True, ax=ax)
     ax.set_xlabel(xlabel)
-    ax.set_ylabel('counts')
+    # The KDE axis is a density, not a count; it used to be labelled 'counts' either way.
+    ax.set_ylabel('density' if use_kde else 'counts')
 
     if add_text is True:
-        textstr = '{:.2f}'.format(observed)
-        ax.text(observed, ax.get_ylim()[1], textstr,
-                horizontalalignment='center', verticalalignment='bottom',
-                rotation=0, c=line_color, size=6)
-
-    if add_text is True:
+        label = f'{observed:.2f}'
         if p_val is not None:
-            ax.text(observed, ax.get_ylim()[1], format_pvalue(p_val),
-                    horizontalalignment='left', verticalalignment='top',
-                    rotation=270, c=line_color, size=6)
+            label += f', {format_pvalue(p_val)}'
+
+        # Add annotation text
+        shared = dict(xycoords=('data', 'axes fraction'), textcoords='offset points',
+                      rotation=270, rotation_mode='anchor', color=line_color)
+        ax.annotate(label, xy=(observed, 0.98), xytext=(-10, 0),
+                    ha='left', va='bottom', fontweight='bold', **shared)
+        ax.annotate('observed', xy=(observed, 0.98), xytext=(8, 0),
+                    ha='left', va='top', fontweight='bold', **shared)
 
 
 def brain_scatter_plot(parcel_coords, node_data=None, edge_data=None, fig_height=1.25, vmin=None, vmax=None, cmap=None, add_colorbar=False, ax=None):
