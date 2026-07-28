@@ -38,6 +38,7 @@ PAGES = [
     ]),
     ("timeseries", "Time series", "snaplab_tools.signal", [
         ("snaplab_tools.signal", "Filtering"),
+        ("snaplab_tools.timescales", "Autocorrelation and intrinsic timescales"),
         ("snaplab_tools.derivs", "Derived measures"),
     ]),
     ("datasets", "Example datasets", "snaplab_tools.datasets", [
@@ -53,7 +54,7 @@ PAGES = [
 
 # Names in __all__ that are module constants rather than functions/classes; autosummary cannot
 # build a stub page for these, so they are listed in prose instead.
-CONSTANTS = {"SIGNALS", "WB_COMMAND", "YEO7_COLORS"}
+CONSTANTS = {"SIGNALS", "TIMESCALE_METHODS", "WB_COMMAND", "YEO7_COLORS"}
 
 
 def _autosummary_block(module, names):

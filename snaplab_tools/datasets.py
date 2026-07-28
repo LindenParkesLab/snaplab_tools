@@ -18,12 +18,16 @@ Brain maps
     :func:`make_correlated_map` generates a second one correlated with the first at a target
     strength.
 
+Time series
+    :func:`make_timeseries` generates BOLD-like series whose autocorrelation varies across regions,
+    so an intrinsic-timescale estimator has a known answer to recover.
+
 All functions take a `seed` and are fully deterministic. Examples in the documentation rely on
 specific seeds, so treat the outputs as fixtures: changing the generators changes the docs.
 
 This module is being restored a piece at a time alongside the tutorials that use it. Generators for
-subject cohorts, structural connectomes, developmental trajectories with a known change point, and
-BOLD-like time series will return with the tutorials that need them.
+subject cohorts, structural connectomes, and developmental trajectories with a known change point
+will return with the tutorials that need them.
 """
 from __future__ import annotations
 
@@ -37,6 +41,7 @@ __all__ = [
     'schaefer_systems',
     'make_spatial_map',
     'make_correlated_map',
+    'make_timeseries',
 ]
 
 # Parcellation resolutions with bundled geodesic distance matrices.
@@ -237,3 +242,56 @@ def make_correlated_map(reference, rho=0.5, seed=1, length_scale=_DEFAULT_LENGTH
 
     mixed = rho * ref_z + np.sqrt(1.0 - rho ** 2) * component
     return (mixed - mixed.mean()) / mixed.std()
+
+
+def make_timeseries(n_regions=50, n_timepoints=600, tr=0.8, seed=0, tau_range=(1.0, 8.0)):
+    """Generate BOLD-like parcellated time series with region-varying autocorrelation.
+
+    Each region is an AR(1) process whose decay constant varies systematically across regions,
+    producing a gradient of intrinsic timescales like the one observed empirically along the
+    cortical hierarchy. That gradient is the point: it gives
+    :func:`~snaplab_tools.timescales.compute_acf` something real to recover, and
+    :func:`~snaplab_tools.signal.apply_frequency_filter` something to visibly change.
+
+    Parameters
+    ----------
+    n_regions : int
+        Number of regions. Unlike the map generators this is unconstrained -- no parcellation
+        geometry is involved.
+    n_timepoints : int
+        Number of volumes.
+    tr : float
+        Repetition time in seconds; sets the sampling rate for filtering.
+    seed : int
+        Random seed.
+    tau_range : tuple of float
+        (min, max) decay timescale in seconds, swept linearly across regions.
+
+    Returns
+    -------
+    dict
+        ``ts`` -- (n_regions, n_timepoints) time series; ``tau`` -- (n_regions,) the true decay
+        timescale of each region, in seconds; ``tr`` -- the repetition time, echoed back for
+        passing to the filter.
+
+    Examples
+    --------
+    >>> data = make_timeseries(n_regions=50, n_timepoints=600, seed=0)
+    >>> filtered = apply_frequency_filter(data['ts'], 1 / data['tr'],
+    ...                                   lowpass=0.1, highpass=0.01)
+    """
+    rng = np.random.default_rng(seed)
+    tau = np.linspace(tau_range[0], tau_range[1], n_regions)
+
+    # AR(1) coefficient implied by an exponential decay of time constant tau, sampled every tr.
+    phi = np.exp(-tr / tau)
+
+    ts = np.zeros((n_regions, n_timepoints))
+    innovations = rng.standard_normal((n_regions, n_timepoints))
+    # Scale innovations so every region ends up with unit variance regardless of its phi.
+    scale = np.sqrt(1.0 - phi ** 2)[:, None]
+    ts[:, 0] = innovations[:, 0]
+    for t in range(1, n_timepoints):
+        ts[:, t] = phi * ts[:, t - 1] + scale[:, 0] * innovations[:, t]
+
+    return {"ts": ts, "tau": tau, "tr": tr}

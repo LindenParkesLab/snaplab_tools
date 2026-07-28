@@ -17,11 +17,11 @@ meaningful rather than merely executable.
 plotting_correlations
 colormaps_and_style
 null_models
+intrinsic_neural_timescales
 ```
 
 :::{note}
-More tutorials — spatial null models, GAMs and change-point detection, correlation statistics,
-network topology, cross-validated prediction, cortical surfaces — are being rewritten and will
-appear here as they land. The [API reference](../api/index.md) documents every function in the
-meantime.
+More tutorials — GAMs and change-point detection, correlation statistics, network topology,
+cross-validated prediction, cortical surfaces — are being rewritten and will appear here as they
+land. The [API reference](../api/index.md) documents every function in the meantime.
 :::
