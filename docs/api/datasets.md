@@ -13,5 +13,6 @@ Synthetic data on real cortical geometry, for tutorials, examples, and tests.
    schaefer_systems
    make_spatial_map
    make_correlated_map
+   make_connectome
    make_timeseries
 ```

@@ -18,6 +18,11 @@ Brain maps
     :func:`make_correlated_map` generates a second one correlated with the first at a target
     strength.
 
+Networks
+    :func:`make_connectome` generates a weighted undirected structural connectome whose edge
+    weights decay with distance, with modular and hub structure layered on top -- the ingredients a
+    null network model is there to separate.
+
 Time series
     :func:`make_timeseries` generates BOLD-like series whose autocorrelation varies across regions,
     so an intrinsic-timescale estimator has a known answer to recover.
@@ -26,13 +31,14 @@ All functions take a `seed` and are fully deterministic. Examples in the documen
 specific seeds, so treat the outputs as fixtures: changing the generators changes the docs.
 
 This module is being restored a piece at a time alongside the tutorials that use it. Generators for
-subject cohorts, structural connectomes, and developmental trajectories with a known change point
-will return with the tutorials that need them.
+subject cohorts and developmental trajectories with a known change point will return with the
+tutorials that need them.
 """
 from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from scipy.spatial.distance import pdist, squareform
 
 from .nulls.maps import _centroid_csv_path, load_distance_matrix
 
@@ -41,6 +47,7 @@ __all__ = [
     'schaefer_systems',
     'make_spatial_map',
     'make_correlated_map',
+    'make_connectome',
     'make_timeseries',
 ]
 
@@ -242,6 +249,102 @@ def make_correlated_map(reference, rho=0.5, seed=1, length_scale=_DEFAULT_LENGTH
 
     mixed = rho * ref_z + np.sqrt(1.0 - rho ** 2) * component
     return (mixed - mixed.mean()) / mixed.std()
+
+
+def make_connectome(n_regions=400, seed=0, density=0.25, length_scale=40.0,
+                    modular_gain=1.0, hub_scale=0.6, weight_noise=0.5, geometry=None):
+    """Generate a weighted undirected structural connectome on real Schaefer geometry.
+
+    Built to carry the three things a null network model exists to tell apart:
+
+    **Geometry.** Edge weights fall off exponentially with the Euclidean distance between parcel
+    centroids, so nearby regions are connected far more strongly than distant ones. This dominates
+    real connectomes, and it is exactly what :func:`~snaplab_tools.nulls.geomsurr` holds fixed.
+
+    **Modules.** Parcels in the same Yeo system get a weight bonus, producing community structure
+    that distance alone does not explain.
+
+    **Hubs.** Each node carries a random affinity added to all of its edges, so node strengths vary
+    over and above what geometry dictates -- which is what makes the strength-preserving variants
+    of a rewiring null (``Wsp``, ``Wssp``) a meaningful constraint rather than a formality.
+
+    Weights are strictly positive and lognormally distributed, as real streamline counts roughly
+    are, and as :func:`~snaplab_tools.nulls.geomsurr` requires (it works on log-weights).
+
+    Parameters
+    ----------
+    n_regions : {100, 200, 400}
+        Parcellation resolution.
+    seed : int
+        Random seed. Different seeds give independent connectomes.
+    density : float
+        Fraction of possible edges retained, in (0, 1]. The strongest edges survive, so
+        thresholding keeps the short-range and within-module connections, as empirical
+        consistency-thresholding does.
+    length_scale : float
+        Distance decay constant in mm. Smaller values give a more strongly spatially embedded
+        network.
+    modular_gain : float
+        Log-weight bonus applied to within-system edges. 0 removes module structure entirely.
+    hub_scale : float
+        Standard deviation of the per-node log-weight affinity. 0 makes node strengths depend on
+        geometry alone.
+    weight_noise : float
+        Standard deviation of the per-edge lognormal noise.
+    geometry : dict or None
+        Pre-loaded output of :func:`schaefer_geometry`. Only ``centroids`` and ``systems`` are
+        used.
+
+    Returns
+    -------
+    (n_regions, n_regions) ndarray
+        Symmetric, non-negative, zero diagonal. Non-zero entries are strictly positive.
+
+    Notes
+    -----
+    Pair this with **Euclidean** centroid distances, not the geodesic matrix from
+    :func:`schaefer_geometry` -- geodesic paths do not cross the midline, so that matrix is NaN
+    across hemispheres and :func:`~snaplab_tools.nulls.geomsurr` will reject it::
+
+        from snaplab_tools.nulls import load_distance_matrix
+        D, _ = load_distance_matrix(n_regions, kind="euclidean")
+
+    Examples
+    --------
+    >>> W = make_connectome(n_regions=100, seed=0)
+    >>> W.shape, bool(np.array_equal(W, W.T)), bool((W >= 0).all())
+    ((100, 100), True, True)
+    >>> round(float((W > 0).sum() / (100 * 99)), 2)   # realised density
+    0.25
+    """
+    _check_resolution(n_regions)
+    geom = geometry if geometry is not None else schaefer_geometry(n_regions)
+    rng = np.random.default_rng(seed)
+
+    # Euclidean, not geodesic: geomsurr needs a finite distance for every edge, and the geodesic
+    # matrix is NaN across hemispheres.
+    distance = squareform(pdist(np.asarray(geom["centroids"], dtype=float)))
+    systems = np.asarray(geom["systems"])
+
+    # Compose the three ingredients in log space, so the weights come out lognormal.
+    log_w = -distance / length_scale
+    log_w = log_w + modular_gain * (systems[:, None] == systems[None, :])
+    affinity = rng.normal(scale=hub_scale, size=n_regions)
+    log_w = log_w + affinity[:, None] + affinity[None, :]
+
+    noise = rng.normal(scale=weight_noise, size=(n_regions, n_regions))
+    log_w = log_w + np.triu(noise, 1) + np.triu(noise, 1).T   # symmetric noise
+
+    # Threshold to the target density on the upper triangle, then mirror.
+    if not 0.0 < density <= 1.0:
+        raise ValueError(f"density must be in (0, 1]; got {density}")
+    triu = np.triu_indices(n_regions, k=1)
+    n_keep = max(1, int(round(density * triu[0].size)))
+    keep = np.argsort(log_w[triu])[::-1][:n_keep]
+
+    W = np.zeros((n_regions, n_regions))
+    W[triu[0][keep], triu[1][keep]] = np.exp(log_w[triu][keep])
+    return W + W.T
 
 
 def make_timeseries(n_regions=50, n_timepoints=600, tr=0.8, seed=0, tau_range=(1.0, 8.0)):
