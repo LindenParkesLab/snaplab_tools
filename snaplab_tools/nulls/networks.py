@@ -70,6 +70,8 @@ https://doi.org/10.1038/s41596-024-01023-w
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 from tqdm import tqdm
 
@@ -126,7 +128,7 @@ def _strength_correct(W, target_strength, n_iter=10):
 # --------------------------------------------------------------------------------------------
 # The generator
 # --------------------------------------------------------------------------------------------
-def geomsurr(W, D, nmean=3, nstd=2, seed=123, n_iter=10):
+def geomsurr(W, D, nmean=3, nstd=2, seed=123, n_iter=10, verbose=True):
     """Geometry-preserving surrogate connectomes (Roberts et al., 2016).
 
     Randomises which node pairs are connected how strongly, while holding fixed the relationship
@@ -153,6 +155,9 @@ def geomsurr(W, D, nmean=3, nstd=2, seed=123, n_iter=10):
         Passes of the iterative strength correction behind ``Wsp`` and ``Wssp``. The default
         reproduces the published implementation and lands strengths within ~0.2% of target; raise
         it (50 is exact to floating point) if your statistic is sensitive to that residual.
+    verbose : bool, default=True
+        Warn if ``W`` has non-zero self-connections, which are dropped and so must also be dropped
+        from the matrix the observed statistic is computed on.
 
     Returns
     -------
@@ -192,6 +197,20 @@ def geomsurr(W, D, nmean=3, nstd=2, seed=123, n_iter=10):
         raise ValueError(f"W and D must both be square and the same size; got {W.shape} and {D.shape}.")
 
     directed = not np.array_equal(W, W.T)
+
+    # Self-connections cannot be rewired -- there is no pair of nodes to reassign -- so they are
+    # dropped. Say so: the observed statistic must be computed on a zero-diagonal W too, or the
+    # comparison against this null spans a difference that has nothing to do with rewiring.
+    if verbose and np.any(np.diag(W) != 0):
+        warnings.warn(
+            f"W has {int(np.sum(np.diag(W) != 0))} non-zero self-connection(s), which geomsurr "
+            f"drops -- every surrogate returned here has a zero diagonal. Compute your observed "
+            f"statistic on a zero-diagonal W as well (np.fill_diagonal(W, 0) on a copy), or the "
+            f"observed/null comparison confounds rewiring with the presence of self-loops. Pass "
+            f"verbose=False to silence this.",
+            UserWarning,
+            stacklevel=2,
+        )
     np.fill_diagonal(W, 0.0)
 
     # For an undirected W the two triangles are redundant; rewire one and mirror it back.
@@ -250,7 +269,7 @@ def geomsurr(W, D, nmean=3, nstd=2, seed=123, n_iter=10):
 # --------------------------------------------------------------------------------------------
 def generate_network_nulls(W, D, n_perms=1000, kind='ssp', statistic=None, seed=0,
                            nmean=3, nstd=2, n_iter=10, progress=True,
-                           desc='surrogate networks'):
+                           desc='surrogate networks', verbose=True):
     """Build a null distribution by recomputing a statistic over ``n_perms`` rewired connectomes.
 
     Wraps the loop that :func:`geomsurr` is almost always used inside: rewire, recompute, collect.
@@ -281,6 +300,9 @@ def generate_network_nulls(W, D, n_perms=1000, kind='ssp', statistic=None, seed=
         connectome takes minutes, and longer again if ``statistic`` is expensive.
     desc : str
         Label for the progress bar.
+    verbose : bool, default=True
+        Forwarded to :func:`geomsurr` for the first surrogate only, so a self-connection warning is
+        raised once rather than ``n_perms`` times.
 
     Returns
     -------
@@ -327,7 +349,7 @@ def generate_network_nulls(W, D, n_perms=1000, kind='ssp', statistic=None, seed=
     out = {}
     for i in tqdm(range(n_perms), desc=desc, disable=not progress):
         surrogates = dict(zip(_KINDS, geomsurr(W, D, nmean=nmean, nstd=nstd, seed=seed + i,
-                                               n_iter=n_iter)))
+                                               n_iter=n_iter, verbose=verbose and i == 0)))
         for k in kinds:
             value = surrogates[k] if statistic is None else np.asarray(statistic(surrogates[k]),
                                                                        dtype=float)
