@@ -26,7 +26,7 @@ utils
 | Module | What it covers |
 | --- | --- |
 | [Statistics](stats.md) | Correlation statistics, partial correlations, and tests on brain-map relationships. |
-| [Null models](nulls.md) | Spatial null models for parcellated cortical maps. |
+| [Null models](nulls.md) | Null models for brain maps and brain networks. |
 | [GAMs and change points](gams.md) | Generic GAM fitting, derivative signals, change-point detection, and a bootstrap engine. |
 | [Network topology](topology.md) | Topology analysis functions for network neuroscience. |
 | [Prediction](prediction.md) | Cross-validated regression with nuisance control, PCA, and permutation testing. |

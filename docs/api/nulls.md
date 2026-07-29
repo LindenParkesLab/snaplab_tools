@@ -1,6 +1,6 @@
 # Null models
 
-Spatial null models for parcellated cortical maps.
+Null models for brain maps and brain networks.
 
 ```{eval-rst}
 .. currentmodule:: snaplab_tools.nulls
@@ -16,4 +16,6 @@ Spatial null models for parcellated cortical maps.
    corr_with_covar_null
    correlate_family
    network_enrichment
+   geomsurr
+   generate_network_nulls
 ```
