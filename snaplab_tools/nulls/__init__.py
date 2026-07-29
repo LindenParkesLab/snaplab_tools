@@ -7,10 +7,11 @@ preserve the spatial autocorrelation of the original, which is what makes a corr
 two brain maps testable. Use it when the statistic is a property of a map -- a correlation with
 another map, a system-wise mean.
 
-:mod:`~snaplab_tools.nulls.networks` surrogates the **network**: it rewires a connectome while
-preserving the relationship between edge weight and inter-nodal distance, and optionally node
-strengths. Use it when the statistic is a property of a graph -- control energy, average
-controllability, modularity, path length.
+:mod:`~snaplab_tools.nulls.networks` surrogates the **network**: it redistributes edge weights
+while preserving their relationship to inter-nodal distance, and optionally node strengths. Use it
+when the statistic is a property of a weighted graph -- control energy, average controllability,
+weighted modularity. It leaves the edge set untouched, so it is *not* a null for binary graph
+statistics; see that module's warning.
 
 The generic statistics both build on -- ``get_null_p`` for turning any null distribution into a
 p-value, ``residualize`` for removing covariates -- live in :mod:`snaplab_tools.stats`, since

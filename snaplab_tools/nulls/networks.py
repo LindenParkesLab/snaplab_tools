@@ -1,24 +1,34 @@
-"""Null network models: rewired connectomes that preserve spatial embedding.
+"""Null network models: surrogate connectomes that preserve spatial embedding.
 
 Where :mod:`snaplab_tools.nulls.maps` surrogates a parcel-wise *map*, this module surrogates the
 *network* itself. The question it answers is different: given that a connectome shows some
-property -- efficient state transitions, a particular distribution of average controllability,
-short path lengths -- is that property attributable to the network's non-trivial topology, or is
-it what you would get from *any* network with the same geometry and weight statistics?
+property -- efficient state transitions, a particular distribution of average controllability --
+is that property attributable to how the network is organised, or is it what you would get from
+*any* network with the same geometry and weight statistics?
 
 The generator is the geometry-preserving surrogate of Roberts et al. (2016). The insight it is
 built on is that connectome edge weights are strongly and systematically related to the physical
 distance between nodes: nearby regions are connected more strongly than distant ones, and this
-weight-distance relationship alone reproduces a surprising amount of connectome topology. A null
-that shuffles edges without respecting geometry therefore breaks something trivially true of the
-brain, and any test against it is close to guaranteed to come out significant. These surrogates
-instead hold the weight-distance relationship fixed and randomise everything else.
+weight-distance relationship alone reproduces a surprising amount of connectome organisation. A
+null that ignores geometry therefore breaks something trivially true of the brain, and a test
+against it is close to guaranteed to come out significant. These surrogates instead hold the
+weight-distance relationship fixed and randomise what is left.
+
+.. warning::
+
+   **The edge set is fixed.** :func:`geomsurr` redistributes weights over the edges that already
+   exist; it does not move, add, or delete any. The binary adjacency matrix -- and therefore the
+   degree sequence, the binary path length, the binary clustering coefficient -- is *identical*
+   between a surrogate and the original. Testing a binary graph statistic against these nulls
+   yields a zero-variance null distribution and a meaningless p-value. They are nulls for
+   **weighted** statistics only. For a binary topology null, rewire with something like
+   ``bct.randmio_und``.
 
 Concretely, :func:`geomsurr` fits the mean and variance of ``log(weight)`` as polynomial functions
 of inter-nodal distance, shuffles the residuals, and inverts the fit -- so the surrogate has the
-same weight-versus-distance profile as the original, but a randomised assignment of which pairs of
-nodes are connected how strongly. It returns three surrogates, in increasing order of how much
-they constrain:
+same weight-versus-distance profile as the original, but a randomised assignment of *which* of its
+edges carry the strong weights. It returns three surrogates, in increasing order of how much they
+constrain:
 
 ``Wwp`` -- **weight-preserving.** The original multiset of edge weights, reassigned to a new,
 distance-respecting random order. Node strengths are *not* preserved.
@@ -37,12 +47,6 @@ rather than solving outright. At the published default of ``n_iter=10`` the stre
 roughly 0.1-0.2% of target (correlation with the target > 0.9999), which is immaterial for the
 statistics these nulls are used for but is not zero. Raise ``n_iter`` if a statistic is sensitive
 to it; ``n_iter=50`` is exact to floating point and costs ~5x the (cheap) correction step.
-
-Which to use follows from the hypothesis. For a nodal metric that is known to track strength --
-average controllability being the canonical case (Gu et al., 2015) -- ``Wssp`` is the one that
-makes the test non-trivial, since it removes the strength confound outright. For a network-level
-statistic such as the control energy of a state transition, ``Wsp`` and ``Wssp`` reported together
-separate "the strength distribution explains it" from "the strength sequence explains it".
 
 .. note::
 
@@ -131,16 +135,25 @@ def _strength_correct(W, target_strength, n_iter=10):
 def geomsurr(W, D, nmean=3, nstd=2, seed=123, n_iter=10, verbose=True):
     """Geometry-preserving surrogate connectomes (Roberts et al., 2016).
 
-    Randomises which node pairs are connected how strongly, while holding fixed the relationship
-    between edge weight and inter-nodal distance -- see the module docstring for what each of the
-    three returned surrogates preserves and how to choose between them.
+    Randomises which of the existing edges carry the strong weights, while holding fixed the
+    relationship between edge weight and inter-nodal distance -- see the module docstring for what
+    each of the three returned surrogates preserves and how to choose between them.
+
+    .. warning::
+
+       **The edge set is fixed.** Weights are redistributed over the edges that already exist; none
+       are moved, added, or deleted. The binary adjacency matrix of every surrogate is *identical*
+       to that of ``W``, as is the degree sequence. A statistic computed on the unweighted graph --
+       degree, binary path length, binary clustering -- therefore gets a zero-variance null and a
+       meaningless p-value. These are nulls for **weighted** statistics only; for a binary topology
+       null, rewire with something like ``bct.randmio_und``.
 
     Parameters
     ----------
     W : (n_nodes, n_nodes) ndarray
-        Adjacency matrix to rewire. Weights must be **positive** (the method works on
-        ``log(weight)``); zeros denote absent edges. Not modified in place. Self-connections are
-        removed before rewiring, so the surrogates always have a zero diagonal.
+        Adjacency matrix whose weights are to be redistributed. Weights must be **positive** (the
+        method works on ``log(weight)``); zeros denote absent edges and stay absent. Not modified in
+        place. Self-connections are dropped, so the surrogates always have a zero diagonal.
     D : (n_nodes, n_nodes) ndarray
         Inter-nodal distance, in any consistent unit. Typically Euclidean distance between parcel
         centroids; must be finite wherever ``W`` is non-zero.
@@ -173,7 +186,7 @@ def geomsurr(W, D, nmean=3, nstd=2, seed=123, n_iter=10, verbose=True):
 
     Notes
     -----
-    Directedness is detected from ``W``: if ``W`` is exactly symmetric the rewiring is done on one
+    Directedness is detected from ``W``: if ``W`` is exactly symmetric the redistribution is done on one
     triangle and mirrored, otherwise every edge is treated independently.
 
     Examples
@@ -198,22 +211,22 @@ def geomsurr(W, D, nmean=3, nstd=2, seed=123, n_iter=10, verbose=True):
 
     directed = not np.array_equal(W, W.T)
 
-    # Self-connections cannot be rewired -- there is no pair of nodes to reassign -- so they are
+    # Self-connections have no distance to speak of and no pair of nodes to reassign, so they are
     # dropped. Say so: the observed statistic must be computed on a zero-diagonal W too, or the
-    # comparison against this null spans a difference that has nothing to do with rewiring.
+    # comparison against this null spans a difference that has nothing to do with the surrogate.
     if verbose and np.any(np.diag(W) != 0):
         warnings.warn(
             f"W has {int(np.sum(np.diag(W) != 0))} non-zero self-connection(s), which geomsurr "
             f"drops -- every surrogate returned here has a zero diagonal. Compute your observed "
             f"statistic on a zero-diagonal W as well (np.fill_diagonal(W, 0) on a copy), or the "
-            f"observed/null comparison confounds rewiring with the presence of self-loops. Pass "
+            f"observed/null comparison confounds the surrogate with the loss of self-loops. Pass "
             f"verbose=False to silence this.",
             UserWarning,
             stacklevel=2,
         )
     np.fill_diagonal(W, 0.0)
 
-    # For an undirected W the two triangles are redundant; rewire one and mirror it back.
+    # For an undirected W the two triangles are redundant; do one and mirror it back.
     W_work = W if directed else np.tril(W)
 
     nz = np.where(W_work != 0)
@@ -270,11 +283,15 @@ def geomsurr(W, D, nmean=3, nstd=2, seed=123, n_iter=10, verbose=True):
 def generate_network_nulls(W, D, n_perms=1000, kind='ssp', statistic=None, seed=0,
                            nmean=3, nstd=2, n_iter=10, progress=True,
                            desc='surrogate networks', verbose=True):
-    """Build a null distribution by recomputing a statistic over ``n_perms`` rewired connectomes.
+    """Build a null distribution by recomputing a statistic over ``n_perms`` surrogate connectomes.
 
-    Wraps the loop that :func:`geomsurr` is almost always used inside: rewire, recompute, collect.
+    Wraps the loop that :func:`geomsurr` is almost always used inside: surrogate, recompute, collect.
     Feed the result to :func:`snaplab_tools.stats.get_null_p` for a p-value, or
     :func:`snaplab_tools.plotting.plotting.null_plot` for the figure.
+
+    Read the warning on :func:`geomsurr` before choosing ``statistic``: the surrogates share the
+    original's edge set exactly, so a statistic that ignores edge weights will produce an identical
+    value for every permutation and a null distribution with no variance.
 
     Parameters
     ----------
@@ -284,7 +301,7 @@ def generate_network_nulls(W, D, n_perms=1000, kind='ssp', statistic=None, seed=
         Number of surrogate networks.
     kind : {'wp', 'sp', 'ssp'} or sequence of those, default='ssp'
         Which surrogate(s) to evaluate. All three come out of one :func:`geomsurr` call, so asking
-        for several costs no extra rewiring -- pass ``('sp', 'ssp')`` to report both nulls rather
+        for several costs no extra surrogate generation -- pass ``('sp', 'ssp')`` for both nulls rather
         than running this function twice.
     statistic : callable, optional
         ``statistic(A) -> float or ndarray``, applied to each surrogate. If omitted, the surrogate
@@ -315,7 +332,7 @@ def generate_network_nulls(W, D, n_perms=1000, kind='ssp', statistic=None, seed=
     --------
     A nodal null for average controllability, the test run in Parkes et al. (2024). The statistic
     normalises each surrogate exactly as the observed connectome was normalised -- the null is only
-    interpretable if every step downstream of the rewiring is identical::
+    interpretable if every step downstream of the surrogate is identical::
 
         from nctpy.metrics import ave_control
         from nctpy.utils import matrix_normalization
@@ -332,7 +349,7 @@ def generate_network_nulls(W, D, n_perms=1000, kind='ssp', statistic=None, seed=
              for i in range(len(observed))]
         p = get_fdr_p(np.array(p))
 
-    Two nulls for one scalar statistic, from a single pass of rewiring::
+    Two nulls for one scalar statistic, from a single pass of surrogate generation::
 
         nulls = generate_network_nulls(W, D, n_perms=5000, kind=('sp', 'ssp'),
                                        statistic=my_energy)

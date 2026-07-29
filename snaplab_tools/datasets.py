@@ -266,7 +266,8 @@ def make_connectome(n_regions=400, seed=0, density=0.25, length_scale=40.0,
 
     **Hubs.** Each node carries a random affinity added to all of its edges, so node strengths vary
     over and above what geometry dictates -- which is what makes the strength-preserving variants
-    of a rewiring null (``Wsp``, ``Wssp``) a meaningful constraint rather than a formality.
+    of a geometry-preserving null (``Wsp``, ``Wssp``) a meaningful constraint rather than a
+    formality.
 
     Weights are strictly positive and lognormally distributed, as real streamline counts roughly
     are, and as :func:`~snaplab_tools.nulls.geomsurr` requires (it works on log-weights).
