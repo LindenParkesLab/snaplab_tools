@@ -11,7 +11,7 @@ neither is specific to null models::
     from snaplab_tools.stats import get_null_p
 """
 
-from .nulls import (
+from .maps import (
     load_distance_matrix,
     build_geodesic_distance_matrix,
     generate_surrogates,

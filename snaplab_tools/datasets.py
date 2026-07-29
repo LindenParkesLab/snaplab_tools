@@ -34,7 +34,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from .nulls.nulls import _centroid_csv_path, load_distance_matrix
+from .nulls.maps import _centroid_csv_path, load_distance_matrix
 
 __all__ = [
     'schaefer_geometry',
