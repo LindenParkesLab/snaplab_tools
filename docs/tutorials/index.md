@@ -17,6 +17,7 @@ meaningful rather than merely executable.
 plotting_correlations
 colormaps_and_style
 null_models
+null_networks
 intrinsic_neural_timescales
 ```
 
