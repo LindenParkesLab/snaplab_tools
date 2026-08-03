@@ -53,6 +53,29 @@ Computed in this repository from the two items above using Connectome Workbench
 (`wb_command -surface-geodesic-distance`). As derived works they inherit the terms of their
 sources.
 
+### Glasser (HCP-MMP1.0) derived products
+
+`distances/glasser360_geodesic_{distance,hemi}.npy`,
+`parcellations/Glasser360_HCPMMP1_FSLMNI152_1mm.Centroid_RAS.csv`
+
+**The HCP-MMP1.0 parcellation itself is deliberately not bundled.** It is distributed via BALSA
+under the HCP Data Use Terms, which restrict redistribution, so only these derived products ship:
+a 360×360 matrix of geodesic distances between area centroids, and a table of centroid
+coordinates. Neither reproduces the parcellation — you cannot recover the vertex-to-area
+assignment from either — but as derived works they inherit the terms of their source, and anyone
+redistributing this package further should confirm that position for themselves.
+
+The distance matrix was built from a locally held BALSA copy
+(`Q1-Q6_RelatedValidation210.CorticalAreas_dil_Final_Final_Areas_Group_Colors_with_Atlas_ROIs2`)
+against the fsLR-32k surfaces above; rebuilding it requires you to supply your own copy, which
+`scripts/nulls/build_distance_matrices.py` takes via `--dlabel`. The centroid CSV was derived from
+the volumetric Glasser atlas in `data/atlases/` (see below), not from BALSA.
+
+Glasser, M.F., Coalson, T.S., Robinson, E.C., Hacker, C.D., Harwell, J., Yacoub, E., Ugurbil, K.,
+Andersson, J., Beckmann, C.F., Jenkinson, M., Smith, S.M., & Van Essen, D.C. (2016). A multi-modal
+parcellation of human cerebral cortex. *Nature*, 536, 171–178.
+<https://doi.org/10.1038/nature18933>
+
 ---
 
 ## In `data/atlases/` (not installed with the package)
