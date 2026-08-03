@@ -67,7 +67,8 @@ Spatial null models
 : Parcels are not independent observations, so a parametric p-value on a brain-map correlation is
   not meaningful. {mod}`snaplab_tools.nulls` generates BrainSMASH surrogates that preserve spatial
   autocorrelation, using geodesic distance matrices **bundled with the package** — no download, no
-  Connectome Workbench required for the standard Schaefer resolutions.
+  Connectome Workbench required, at every Schaefer resolution from 100 to 1000 parcels and for
+  Glasser (HCP-MMP1.0).
 
 GAMs and change points
 : Penalized-spline fitting over any predictor, with derivative signals, multivariate change-point

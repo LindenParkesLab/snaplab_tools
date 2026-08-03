@@ -16,9 +16,12 @@ pip install -e .
 The `-e` (editable) install is the one to use in a lab setting: `git pull` then picks up new
 functions without reinstalling.
 
-Installing the package ships about 5 MB of bundled resources with it — Schaefer parcellations at
-100/200/400 parcels, fsLR-32k midthickness surfaces, and precomputed geodesic distance matrices.
-{mod}`snaplab_tools.nulls` works offline because of them.
+Installing the package ships about 39 MB of bundled resources with it — Schaefer parcellations at
+every published resolution (100 to 1000 in steps of 100), fsLR-32k midthickness surfaces, and a
+precomputed geodesic distance matrix for each, plus the Glasser (HCP-MMP1.0) distance matrix and
+centroids. {mod}`snaplab_tools.nulls` works offline because of them. Most of that size is the
+distance matrices, which grow with the square of the resolution: the one for 1000 parcels is 8 MB
+on its own.
 
 ## Optional extras
 
@@ -68,11 +71,40 @@ time, which meant a late `os.environ` assignment silently did nothing.
 
 ## Building geodesic distance matrices yourself
 
-Distance matrices for Schaefer 100, 200, and 400 (7-network) ship with the package, so
-{func}`~snaplab_tools.nulls.load_distance_matrix` works out of the box for those. Any other
-parcellation needs {func}`~snaplab_tools.nulls.build_geodesic_distance_matrix`, which shells out to
-Connectome Workbench — install `wb_command` and put it on your `PATH`, or point at it with the
-`WB_COMMAND` environment variable.
+Distance matrices for all ten Schaefer 7-network resolutions (100 to 1000 in steps of 100) and for
+Glasser (HCP-MMP1.0, 360 areas) ship with the package, so
+{func}`~snaplab_tools.nulls.load_distance_matrix` works out of the box for any of them:
+
+```python
+D, hemi = load_distance_matrix(n_regions=400)                      # Schaefer, the default
+D, hemi = load_distance_matrix(n_regions=360, atlas='glasser')     # HCP-MMP1.0
+```
+
+Any *other* parcellation needs {func}`~snaplab_tools.nulls.build_geodesic_distance_matrix`, which
+shells out to Connectome Workbench — install `wb_command` and put it on your `PATH`, or point at it
+with the `WB_COMMAND` environment variable.
+
+:::{warning}
+Parcel order differs between the two atlases. Schaefer runs **left hemisphere first**; HCP-MMP1.0
+runs **right first** (areas 1–180 right, 181–360 left). Both are kept in the published order, so a
+map parcellated with the atlas as distributed needs no reordering — but if you assemble a map by
+concatenating hemispheres yourself, check which convention you built it in.
+:::
+
+:::{note}
+The Glasser *parcellation* is not bundled — it is distributed via BALSA under the HCP Data Use
+Terms, which restrict redistribution, so only the derived distance matrix and centroids ship (see
+`THIRD_PARTY_NOTICES.md`). That is enough to load and use the basis offline. Rebuilding it needs
+your own BALSA copy, passed to `scripts/nulls/build_distance_matrices.py` via `--dlabel`.
+:::
+
+:::{note}
+At 1000 parcels the upstream CBIG fsLR-32k parcellation assigns no vertices to two of its parcels
+(533 `7Networks_RH_Vis_33` and 903 `7Networks_RH_Cont_Cing_1`), so the geodesic basis covers 998
+of the 1000. Those two carry an all-NaN row;
+{func}`~snaplab_tools.nulls.generate_surrogates` drops them with a warning and returns them as
+NaN. They do have centroids, so `kind='euclidean'` covers all 1000.
+:::
 
 ## Checking the install
 
