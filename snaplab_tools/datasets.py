@@ -51,8 +51,8 @@ __all__ = [
     'make_timeseries',
 ]
 
-# Parcellation resolutions with bundled geodesic distance matrices.
-_SUPPORTED_RESOLUTIONS = (100, 200, 400)
+# Parcellation resolutions with bundled geodesic distance matrices -- the full Schaefer2018 set.
+_SUPPORTED_RESOLUTIONS = tuple(range(100, 1100, 100))
 
 # Default exponential correlation length for generated maps, in mm of geodesic distance. Chosen so
 # that neighbouring parcels are strongly correlated while distant ones are effectively independent
@@ -75,7 +75,7 @@ def schaefer_geometry(n_regions=400):
 
     Parameters
     ----------
-    n_regions : {100, 200, 400}
+    n_regions : {100, 200, ..., 1000}
         Parcellation resolution (7-network order).
 
     Returns
@@ -83,7 +83,8 @@ def schaefer_geometry(n_regions=400):
     dict
         ``distance_matrix`` -- (n_regions, n_regions) geodesic distances in mm along the fsLR
         midthickness surface. Cross-hemisphere entries are NaN, since geodesic paths do not cross
-        the midline; ``hemi`` -- (n_regions,) array of 'L'/'R' labels; ``centroids`` -- (n_regions, 3)
+        the midline, as are the rows of the two Schaefer 1000 parcels that have no vertices on the
+        surface; ``hemi`` -- (n_regions,) array of 'L'/'R' labels; ``centroids`` -- (n_regions, 3)
         R/A/S coordinates in MNI space; ``roi_names`` -- (n_regions,) full Schaefer parcel names;
         ``systems`` -- (n_regions,) Yeo 7-network assignment per parcel.
 
@@ -117,7 +118,7 @@ def schaefer_systems(n_regions=400):
 
     Parameters
     ----------
-    n_regions : {100, 200, 400}
+    n_regions : {100, 200, ..., 1000}
         Parcellation resolution.
 
     Returns
@@ -142,14 +143,18 @@ def _sa_kernel_map(rng, distance_matrix, hemi, length_scale):
     Smoothing runs within each hemisphere separately because the geodesic matrix has no
     cross-hemisphere distances -- the same constraint that makes
     :func:`snaplab_tools.nulls.generate_surrogates` work per-hemisphere.
+
+    Parcels with no position on the surface (an all-NaN distance row) are left NaN: there is no
+    neighbourhood to smooth over. Only Schaefer 1000 has any -- two of them.
     """
     n = distance_matrix.shape[0]
-    out = np.empty(n)
+    out = np.full(n, np.nan)
+    placed = np.isfinite(distance_matrix).any(axis=1)
     for h in ("L", "R"):
-        idx = np.where(hemi == h)[0]
+        idx = np.where(placed & (hemi == h))[0]
         kernel = np.exp(-distance_matrix[np.ix_(idx, idx)] / length_scale)
         out[idx] = kernel @ rng.standard_normal(idx.size)
-    return (out - out.mean()) / out.std()
+    return (out - np.nanmean(out)) / np.nanstd(out)
 
 
 def make_spatial_map(n_regions=400, seed=0, length_scale=_DEFAULT_LENGTH_SCALE,
@@ -166,7 +171,7 @@ def make_spatial_map(n_regions=400, seed=0, length_scale=_DEFAULT_LENGTH_SCALE,
 
     Parameters
     ----------
-    n_regions : {100, 200, 400}
+    n_regions : {100, 200, ..., 1000}
         Parcellation resolution.
     seed : int
         Random seed. Different seeds give independent maps.
@@ -180,7 +185,9 @@ def make_spatial_map(n_regions=400, seed=0, length_scale=_DEFAULT_LENGTH_SCALE,
     Returns
     -------
     (n_regions,) ndarray
-        A z-scored map (mean 0, standard deviation 1).
+        A z-scored map (mean 0, standard deviation 1). At ``n_regions=1000`` the two parcels with
+        no vertices on the fsLR-32k surface come back NaN -- they have no neighbourhood to smooth
+        over. Every other resolution is fully finite.
 
     Examples
     --------
@@ -242,13 +249,20 @@ def make_correlated_map(reference, rho=0.5, seed=1, length_scale=_DEFAULT_LENGTH
 
     ref_z = (reference - np.nanmean(reference)) / np.nanstd(reference)
 
+    # Everything below is done on the parcels both maps have values at, so a NaN anywhere (in the
+    # reference, or at a parcel with no place on the surface) stays local instead of turning the
+    # whole map into NaN. The realised correlation is exact over those parcels.
+    ok = np.isfinite(ref_z) & np.isfinite(component)
+    r, c = ref_z[ok], component[ok]
+
     # Project the reference out of the added component so the two are exactly uncorrelated; only
     # then does the rho / sqrt(1 - rho^2) mixture hit its target correlation exactly.
-    component = component - (component @ ref_z) / (ref_z @ ref_z) * ref_z
-    component = (component - component.mean()) / component.std()
+    c = c - (c @ r) / (r @ r) * r
+    c = (c - c.mean()) / c.std()
 
-    mixed = rho * ref_z + np.sqrt(1.0 - rho ** 2) * component
-    return (mixed - mixed.mean()) / mixed.std()
+    mixed = np.full(reference.shape, np.nan)
+    mixed[ok] = rho * r + np.sqrt(1.0 - rho ** 2) * c
+    return (mixed - np.nanmean(mixed)) / np.nanstd(mixed)
 
 
 def make_connectome(n_regions=400, seed=0, density=0.25, length_scale=40.0,
@@ -274,7 +288,7 @@ def make_connectome(n_regions=400, seed=0, density=0.25, length_scale=40.0,
 
     Parameters
     ----------
-    n_regions : {100, 200, 400}
+    n_regions : {100, 200, ..., 1000}
         Parcellation resolution.
     seed : int
         Random seed. Different seeds give independent connectomes.
