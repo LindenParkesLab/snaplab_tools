@@ -50,4 +50,5 @@ Publication-figure helpers.
    add_module_lines
    process_input_data
    roi_to_vtx
+   save_panel
 ```

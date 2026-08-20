@@ -54,6 +54,7 @@ __all__ = [
     'add_module_lines',
     'process_input_data',
     'roi_to_vtx',
+    'save_panel',
 ]
 
 
@@ -734,6 +735,68 @@ def show_colormaps(names=None, figsize=None):
         ax.set_ylabel(nm, rotation=0, ha='right', va='center', fontsize=8)
     fig.subplots_adjust(left=0.32, hspace=0.5)
     return fig
+
+#: Raster resolution for line/scatter panels, where the PNG is a preview of an accompanying SVG.
+DPI_LINE = 300
+#: Raster resolution for panels containing an imshow/heatmap, where pixels are the content.
+DPI_RASTER = 400
+
+
+def save_panel(fig, out_dir, stem, dpi=None, formats=('png', 'svg'), facecolor='white',
+               transparent=False):
+    """Write a figure panel to ``out_dir`` under ``stem``, and return the shared path stem.
+
+    One place for a project's export convention: tight bounding box, a PNG to look at and an SVG
+    that stays editable in Illustrator (pair it with ``svg.fonttype='none'``, which
+    :func:`set_plotting_params` sets). Routing every export through one function is what stops
+    panels in the same figure drifting in resolution or background.
+
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure
+        Figure to write.
+    out_dir : str
+        Directory to write into; created if absent.
+    stem : str
+        Filename stem, without extension. One file per entry in `formats`.
+    dpi : int or None
+        Raster resolution. ``None`` chooses from the content: :data:`DPI_RASTER` if any axes
+        contains an image (``imshow``), else :data:`DPI_LINE`. A line panel gains nothing above
+        ~300 dpi when its PNG is a preview of a vector SVG; a heatmap genuinely resolves better.
+    formats : sequence of str
+        Extensions to write.
+    facecolor : str
+        Figure background. Ignored when `transparent` is True.
+    transparent : bool
+        Write a transparent background instead of `facecolor`, for panels composited onto a
+        coloured background later.
+
+    Returns
+    -------
+    str
+        ``os.path.join(out_dir, stem)`` -- the stem the written files share, so a caller can log
+        it or hang a sidecar file (a ``.csv`` of the plotted values, say) off the same name.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> from snaplab_tools.plotting.utils import save_panel
+    >>> fig, ax = plt.subplots()
+    >>> ax.plot([0, 1], [0, 1])                                    # doctest: +SKIP
+    >>> save_panel(fig, '/tmp/panels', 'fig1_scatter')             # doctest: +SKIP
+    '/tmp/panels/fig1_scatter'
+    """
+    if dpi is None:
+        dpi = DPI_RASTER if any(ax.get_images() for ax in fig.get_axes()) else DPI_LINE
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, stem)
+    for ext in formats:
+        if transparent:
+            fig.savefig(f'{path}.{ext}', dpi=dpi, bbox_inches='tight', transparent=True)
+        else:
+            fig.savefig(f'{path}.{ext}', dpi=dpi, bbox_inches='tight', facecolor=facecolor)
+    return path
+
 
 ######################################################################################################################################################
 # deprecated functions. Maintained for historical purposes, but have been replaced by newer functions.

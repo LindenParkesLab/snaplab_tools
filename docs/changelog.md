@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- {func}`~snaplab_tools.plotting.utils.save_panel`: one place for a project's figure-export
+  convention -- tight bbox, PNG plus editable SVG, and a content-aware DPI default (higher for
+  panels containing an `imshow`, where pixels are the content, than for line panels whose PNG is
+  a preview of the vector file). Supports transparent backgrounds for panels composited later.
+
 ## 0.1.0
 
 First versioned release, alongside the first published documentation.
