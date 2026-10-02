@@ -25,6 +25,8 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
+          # no requirements.txt or pyproject.toml: key the pip cache on setup.py
+          cache-dependency-path: setup.py
 
       - name: Install
         run: pip install -e ".[docs,changepoint]" pytest
@@ -44,6 +46,8 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
+          # no requirements.txt or pyproject.toml: key the pip cache on setup.py
+          cache-dependency-path: setup.py
 
       # Only needed once a tutorial renders cortical surfaces through VTK. Cheap to leave in
       # place, and it keeps the surface tutorial working the day it returns.
@@ -116,6 +120,8 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
+          # no requirements.txt or pyproject.toml: key the pip cache on setup.py
+          cache-dependency-path: setup.py
 
       # Deliberately mirrors .readthedocs.yaml: `docs` extra only, no surface stack. If this
       # passes and Read the Docs does not, the difference is in the RTD environment, not here.
