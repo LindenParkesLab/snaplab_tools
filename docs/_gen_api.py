@@ -54,7 +54,7 @@ PAGES = [
 
 # Names in __all__ that are module constants rather than functions/classes; autosummary cannot
 # build a stub page for these, so they are listed in prose instead.
-CONSTANTS = {"SIGNALS", "TIMESCALE_METHODS", "WB_COMMAND", "YEO7_COLORS"}
+CONSTANTS = {"DEFAULT_METHOD", "DEFAULT_PADTYPE", "SIGNALS", "TIMESCALE_METHODS", "WB_COMMAND", "YEO7_COLORS"}
 
 
 def _autosummary_block(module, names):

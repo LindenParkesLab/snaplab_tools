@@ -12,6 +12,17 @@ Signal-processing utilities.
    :nosignatures:
 
    apply_frequency_filter
+   resolve_padlen
+```
+
+```{eval-rst}
+.. autodata:: snaplab_tools.signal.DEFAULT_METHOD
+   :no-value:
+```
+
+```{eval-rst}
+.. autodata:: snaplab_tools.signal.DEFAULT_PADTYPE
+   :no-value:
 ```
 
 ## Autocorrelation and intrinsic timescales
