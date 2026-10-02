@@ -256,7 +256,7 @@ def plot_correlation(x, y, ax, x_label=None, y_label=None, title=None,
             group_colors = {g: YEO7_COLORS.get(g, (0.5, 0.5, 0.5)) for g in unique_groups}
             colors = [group_colors[g] for g in unique_groups]
         else:
-            cmap = plt.cm.get_cmap(data_group_cmap)
+            cmap = plt.get_cmap(data_group_cmap)  # matplotlib.cm.get_cmap was removed in matplotlib 3.11
             if n_groups <= 10 and data_group_cmap == 'tab10':
                 colors = [cmap(i) for i in range(n_groups)]
             elif n_groups <= 20 and data_group_cmap == 'tab20':
