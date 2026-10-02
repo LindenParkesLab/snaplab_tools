@@ -4,6 +4,11 @@
 
 ### Added
 
+- {func}`~snaplab_tools.derivs.compute_brain_states`: recurrent patterns of activity ("brain states")
+  by k-means clustering of time points, as in Kim et al. (Nat Commun 2025). Regions are z-scored across
+  time by default, and regions that cannot be clustered (non-finite or constant) are left out and
+  returned as NaN rather than raising. `n_init` is set explicitly (10), because scikit-learn's own
+  default changed in 1.4.
 - {func}`~snaplab_tools.plotting.utils.save_panel`: one place for a project's figure-export
   convention -- tight bbox, PNG plus editable SVG, and a content-aware DPI default (higher for
   panels containing an `imshow`, where pixels are the content, than for line panels whose PNG is

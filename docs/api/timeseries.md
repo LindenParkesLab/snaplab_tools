@@ -46,4 +46,5 @@ Signal-processing utilities.
    :nosignatures:
 
    compute_fc
+   compute_brain_states
 ```
