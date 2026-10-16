@@ -10,6 +10,23 @@ Estimators
     (the lag-1 autocorrelation). :func:`compute_timescale` dispatches by name via
     :data:`TIMESCALE_METHODS`, which is what makes it easy to compute several and compare them.
 
+Amplitude-invariant estimators
+    Additive white noise multiplies every lag >= 1 of an ACF by the signal fraction
+    ``s = var_signal / (var_signal + var_noise)``, so an estimator that reads the ACF's height
+    (:func:`auc`, :func:`lag_one`, a fixed threshold) changes with ``s`` even when the dynamics do
+    not. :func:`acf_ratio_21` and :func:`tau_ratio_21` (a ratio of lags, in which ``s`` cancels)
+    and :func:`tau_expfit_free` (an exponential with a free amplitude over a fixed window of lags)
+    read only the curve's shape.
+
+    **Neither zero crossing is amplitude-invariant** -- not :func:`zero_crossing` and not
+    :func:`zero_crossing_interp`. A threshold of zero looks scale-free, but a sample ACF crosses
+    zero where the signal's decaying correlation meets the estimator's own negative mean-removal
+    bias and sampling noise, and neither of those shrinks with ``s``; lower ``s``, earlier crossing.
+
+    :func:`tau_ratio_21` is NaN wherever the ratio is outside (0, 1), and the cells it drops are the
+    long-tau tail, increasingly so as noise grows. Aggregate the ratio and convert the aggregate
+    (``-tr / ln(median ratio)``); a median of per-cell tau is biased short.
+
 They disagree, and that is the point: an ACF is a curve, and every INT measure is a different
 scalar summary of it. A map built with one estimator is not interchangeable with a map built with
 another, so say which you used.
@@ -23,13 +40,19 @@ actually computed in TRs is wrong by a factor of the TR.
 import warnings
 
 import numpy as np
+import scipy as sp
+from joblib import Parallel, delayed, effective_n_jobs
 
 __all__ = [
     'compute_acf',
     'zero_crossing',
+    'zero_crossing_interp',
     'auc',
     'decay_time',
     'lag_one',
+    'acf_ratio_21',
+    'tau_ratio_21',
+    'tau_expfit_free',
     'compute_timescale',
     'TIMESCALE_METHODS',
 ]
@@ -161,6 +184,40 @@ def zero_crossing(acf, tr=1.0):
     return _unwrap(_first_below(acf, 0.0) * tr, was_1d)
 
 
+def zero_crossing_interp(acf, tr=1.0):
+    """First zero crossing of the ACF, refined by linear interpolation between lags.
+
+    :func:`zero_crossing` reports the first lag ``k`` at which the ACF is negative, so it moves in
+    steps of one TR. This places the crossing on the straight line between lags ``k - 1`` (the last
+    non-negative value) and ``k``, which gives sub-TR resolution. The result always lies in
+    ``[(k - 1) * tr, k * tr)``, i.e. within one TR below :func:`zero_crossing`.
+
+    Parameters
+    ----------
+    acf : (n_lags,) or (n_regions, n_lags) array-like
+        Autocorrelation function(s), as returned by :func:`compute_acf`.
+    tr : float
+        Repetition time in seconds. The default of 1.0 returns lags.
+
+    Returns
+    -------
+    float or (n_regions,) ndarray
+        Interpolated crossing time. NaN where the ACF never goes negative, as for
+        :func:`zero_crossing`.
+    """
+    acf, was_1d = _as_2d(acf)
+    first = _first_below(acf, 0.0)
+    out = np.full(acf.shape[0], np.nan)
+
+    out[first == 0] = 0.0      # lag 0 already negative: not a real ACF, but keep zero_crossing's answer
+    rows = np.flatnonzero(first >= 1)
+    if rows.size:
+        k = first[rows].astype(int)
+        before, after = acf[rows, k - 1], acf[rows, k]     # before >= 0 > after, so the step is > 0
+        out[rows] = (k - 1 + before / (before - after)) * tr
+    return _unwrap(out, was_1d)
+
+
 def decay_time(acf, tr=1.0, threshold=1.0 / np.e):
     """First lag at which the ACF drops below `threshold`.
 
@@ -252,9 +309,178 @@ def lag_one(acf, tr=1.0):
     return _unwrap(acf[:, 1], was_1d)
 
 
+def acf_ratio_21(acf, tr=1.0):
+    """The ratio of the lag-2 to the lag-1 autocorrelation, ``ACF(2) / ACF(1)``.
+
+    Scaling every lag >= 1 by the same factor -- which is what additive white noise does to an ACF
+    -- cancels in the ratio. For an AR(1) process it equals the AR coefficient.
+
+    Parameters
+    ----------
+    acf : (n_lags,) or (n_regions, n_lags) array-like
+        Autocorrelation function(s).
+    tr : float
+        Accepted for symmetry with the other estimators and ignored, as in :func:`lag_one`: a ratio
+        of correlations is not a time.
+
+    Returns
+    -------
+    float or (n_regions,) ndarray
+        The ratio. NaN where ``ACF(1) <= 0`` (or is NaN), since the ratio's sign and size are then
+        not a decay rate.
+    """
+    acf, was_1d = _as_2d(acf)
+    if acf.shape[1] < 3:
+        raise ValueError('need at least 3 lags to form ACF(2) / ACF(1)')
+    lag1, lag2 = acf[:, 1], acf[:, 2]
+    out = np.full(acf.shape[0], np.nan)
+    ok = lag1 > 0                                   # NaN compares False, so NaN rows stay NaN
+    out[ok] = lag2[ok] / lag1[ok]
+    return _unwrap(out, was_1d)
+
+
+def tau_ratio_21(acf, tr=1.0):
+    """Exponential decay time implied by :func:`acf_ratio_21`: ``-tr / ln(ACF(2) / ACF(1))``.
+
+    If ``ACF(k) = A * exp(-k * tr / tau)`` for ``k >= 1``, the ratio of successive lags is
+    ``exp(-tr / tau)`` whatever ``A`` is, so this recovers ``tau`` from two lags without reading the
+    curve's height. For an AR(1) process with coefficient ``phi`` it is ``-tr / ln(phi)``.
+
+    Parameters
+    ----------
+    acf : (n_lags,) or (n_regions, n_lags) array-like
+        Autocorrelation function(s).
+    tr : float
+        Repetition time in seconds.
+
+    Returns
+    -------
+    float or (n_regions,) ndarray
+        Decay time in seconds. NaN unless ``0 < ACF(2) / ACF(1) < 1``: a ratio at or above 1 is not
+        a decay, and a ratio at or below 0 has no logarithm.
+    """
+    acf, was_1d = _as_2d(acf)
+    ratio = np.atleast_1d(acf_ratio_21(acf))
+    out = np.full(acf.shape[0], np.nan)
+    ok = (ratio > 0) & (ratio < 1)
+    out[ok] = -tr / np.log(ratio[ok])
+    return _unwrap(out, was_1d)
+
+
+#: Limits of :func:`tau_expfit_free`. The tau bounds are multiples of ``tr``.
+_EXPFIT_A_BOUNDS = (0.0, 10.0)
+_EXPFIT_TAU_BOUNDS = (0.01, 1000.0)
+_EXPFIT_MAXFEV = 2000
+#: Rows per joblib task; below this a stack is fitted in-process, since spawning workers costs more
+#: than the fits. 25 keeps a 400-parcel scan on 16 workers: 70 ms against 297 ms at 200 rows and 568 ms
+#: serial, measured on HCP-YA WM residual ACFs (about 1.4 ms per row).
+_EXPFIT_ROWS_PER_JOB = 25
+
+
+def _exp_decay(t, amplitude, tau):
+    return amplitude * np.exp(-t / tau)
+
+
+def _expfit_rows(acf, tr, max_lag):
+    """Fit lags 1..max_lag of every row in turn. Returns (tau, amplitude, status), one entry per row."""
+    n_rows = acf.shape[0]
+    tau, amplitude = np.full(n_rows, np.nan), np.full(n_rows, np.nan)
+    status = np.ones(n_rows, dtype=np.int8)                  # 1 until a fit is attempted
+    lags = np.arange(1, max_lag + 1)
+    tau_start = np.atleast_1d(tau_ratio_21(acf, tr))
+    tau_lo, tau_hi = _EXPFIT_TAU_BOUNDS[0] * tr, _EXPFIT_TAU_BOUNDS[1] * tr
+    a_lo, a_hi = _EXPFIT_A_BOUNDS
+
+    for i in range(n_rows):
+        values = acf[i, lags]
+        if not np.isfinite(values).all():
+            continue
+        tau0 = tau_start[i] if np.isfinite(tau_start[i]) else 2.0 * tr
+        tau0 = float(np.clip(tau0, tau_lo * 1.01, tau_hi * 0.99))
+        a0 = float(np.clip(values[0] * np.exp(tr / tau0), 1e-3, a_hi * 0.99))
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')     # covariance warnings; the estimate is what is kept
+                (a_fit, tau_fit), _ = sp.optimize.curve_fit(
+                    _exp_decay, lags * tr, values, p0=(a0, tau0),
+                    bounds=([a_lo, tau_lo], [a_hi, tau_hi]), maxfev=_EXPFIT_MAXFEV)
+        except (RuntimeError, ValueError):
+            status[i] = 2
+            continue
+        if not (np.isfinite(a_fit) and np.isfinite(tau_fit)):
+            status[i] = 2
+            continue
+        amplitude[i] = a_fit
+        if tau_fit <= tau_lo * (1 + 1e-6):
+            tau[i], status[i] = tau_lo, 3
+        elif tau_fit >= tau_hi * (1 - 1e-6):
+            tau[i], status[i] = tau_hi, 3
+        else:
+            tau[i] = tau_fit
+            status[i] = 4 if (a_fit <= a_lo + 1e-9 or a_fit >= a_hi * (1 - 1e-6)) else 0
+    return tau, amplitude, status
+
+
+def tau_expfit_free(acf, tr=1.0, max_lag=4, n_jobs=-1, return_status=False):
+    """Decay time of an exponential with a free amplitude, ``A * exp(-k * tr / tau)``, fitted to lags 1..K.
+
+    Lag 0 is left out and ``A`` is fitted, so a uniform rescaling of lags >= 1 (additive white
+    noise) changes ``A`` and leaves ``tau`` alone. The window is a fixed number of lags rather than
+    "until the ACF falls below a threshold": a threshold on the ACF's height is itself an amplitude
+    rule, and would shorten the window as the signal fraction falls.
+
+    Parameters
+    ----------
+    acf : (n_lags,) or (n_regions, n_lags) array-like
+        Autocorrelation function(s). Only lags 0..`max_lag` are read.
+    tr : float
+        Repetition time in seconds.
+    max_lag : int
+        K, the last lag fitted. At least 2 (two lags for two parameters); 4 by default.
+    n_jobs : int
+        Workers for :class:`joblib.Parallel`, over blocks of rows. A stack of fewer than a few
+        hundred rows is fitted in-process regardless.
+    return_status : bool
+        Also return the fitted amplitude and a per-row status code.
+
+    Returns
+    -------
+    tau : float or (n_regions,) ndarray
+        Decay time in seconds. A fit that ends on a tau bound returns that bound (``0.01 * tr`` or
+        ``1000 * tr``), so a median treats it as censored rather than missing. NaN when a lag in the
+        window is non-finite, and when the fit raises or returns a non-finite value.
+    amplitude, status : (n_regions,) ndarray
+        Only with ``return_status=True``. Status: 0 fitted; 1 non-finite values in the window;
+        2 the fit failed (tau NaN); 3 tau ended on a bound (tau set to that bound); 4 ``A`` ended on
+        a bound (tau kept).
+
+    Notes
+    -----
+    :func:`scipy.optimize.curve_fit` (trust-region reflective) with ``A`` in [0, 10], ``tau`` in
+    [0.01, 1000] x ``tr``, ``maxfev=2000``. The starting ``tau`` is :func:`tau_ratio_21` where that
+    is defined and ``2 * tr`` otherwise; the starting ``A`` puts the curve through ``ACF(1)``.
+    """
+    acf, was_1d = _as_2d(acf)
+    if max_lag < 2:
+        raise ValueError(f'max_lag must be at least 2 to fit two parameters, got {max_lag}')
+    if acf.shape[1] <= max_lag:
+        raise ValueError(f'need lags 0..{max_lag}, got {acf.shape[1]} lags')
+    acf = acf[:, :max_lag + 1]
+    n_blocks = min(effective_n_jobs(n_jobs), max(1, acf.shape[0] // _EXPFIT_ROWS_PER_JOB))
+    if n_blocks == 1:
+        tau, amplitude, status = _expfit_rows(acf, tr, max_lag)
+    else:
+        parts = Parallel(n_jobs=n_blocks)(
+            delayed(_expfit_rows)(block, tr, max_lag) for block in np.array_split(acf, n_blocks))
+        tau, amplitude, status = (np.concatenate(p) for p in zip(*parts))
+    if return_status:
+        return _unwrap(tau, was_1d), amplitude, status
+    return _unwrap(tau, was_1d)
+
+
 #: Estimators whose output is not a time and so does not scale with TR. The units warning in
 #: :func:`compute_timescale` would be meaningless for these.
-_UNITLESS_METHODS = frozenset({'lag_one'})
+_UNITLESS_METHODS = frozenset({'lag_one', 'acf_ratio_21'})
 
 #: Named INT estimators, each callable as ``fn(acf, tr)``. Iterate over it to compute several
 #: measures from one set of ACFs; the keys are stable and safe to use in output filenames.
@@ -265,6 +491,11 @@ TIMESCALE_METHODS = {
     'decay_time':        decay_time,
     'decay_time_half':   lambda acf, tr=1.0: decay_time(acf, tr, threshold=0.5),
     'lag_one':           lag_one,
+    # Amplitude-invariant (see the module docstring).
+    'zero_crossing_interp': zero_crossing_interp,
+    'acf_ratio_21':         acf_ratio_21,
+    'tau_ratio_21':         tau_ratio_21,
+    'tau_expfit_free':      tau_expfit_free,
 }
 
 

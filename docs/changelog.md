@@ -4,6 +4,14 @@
 
 ### Added
 
+- Amplitude-invariant timescale estimators in {mod}`~snaplab_tools.timescales`, all in
+  `TIMESCALE_METHODS`: {func}`~snaplab_tools.timescales.acf_ratio_21` (ACF(2)/ACF(1)),
+  {func}`~snaplab_tools.timescales.tau_ratio_21` (its implied decay time; aggregate the ratio, then
+  convert), and {func}`~snaplab_tools.timescales.tau_expfit_free` (a free-amplitude exponential over
+  a fixed window of lags 1..4, bounded fits censored at the bound). Additive white noise scales every
+  lag >= 1 of an ACF, which these cancel. Also {func}`~snaplab_tools.timescales.zero_crossing_interp`,
+  the first zero crossing at sub-TR resolution -- which, like
+  {func}`~snaplab_tools.timescales.zero_crossing`, is *not* amplitude-invariant.
 - {func}`~snaplab_tools.derivs.compute_brain_states`: recurrent patterns of activity ("brain states")
   by k-means clustering of time points, as in Kim et al. (Nat Commun 2025). Regions are z-scored across
   time by default, and regions that cannot be clustered (non-finite or constant) are left out and
