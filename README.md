@@ -1,5 +1,6 @@
 # SNaP Lab Tools
 
+[![DOI](https://zenodo.org/badge/762254429.svg)](https://doi.org/10.5281/zenodo.23420738)
 [![Documentation Status](https://readthedocs.org/projects/snaplab-tools/badge/?version=latest)](https://snaplab-tools.readthedocs.io/en/latest/?badge=latest)
 
 Common analysis functions and tools used by the SNaP Lab: spatial null models, GAM fitting and
