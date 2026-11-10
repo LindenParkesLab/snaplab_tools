@@ -24,6 +24,7 @@ Correlation statistics, partial correlations, and tests on brain-map relationshi
    decoupling_test
    get_null_p
    get_fdr_p
+   icc
    winsorize
    winsorize_iqr
    pca_with_nan_handling

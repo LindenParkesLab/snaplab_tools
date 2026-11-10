@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Detrended fluctuation analysis in {mod}`~snaplab_tools.timescales`:
+  {func}`~snaplab_tools.timescales.dfa_fluctuation` (the fluctuation function F(n), with overlapping
+  segments, polynomial detrending of any order, an optional mask of usable samples whose segments are
+  skipped, and segment counts for pooling several recordings),
+  {func}`~snaplab_tools.timescales.dfa_exponent` (log-log slope over a range of scales, with r²) and
+  {func}`~snaplab_tools.timescales.dfa`. Tested against white noise (α = 0.5), 1/f noise (α = 1.0),
+  both also with 10 % of samples deleted, and the AR(1) crossover from α = 1.5 to 0.5, whose scale
+  for DFA-1 is √28 / (1 − φ).
+- {func}`~snaplab_tools.timescales.crossing_interp`: the first crossing of any threshold by an ACF at
+  sub-lag resolution (``threshold=0.5`` gives an interpolated ACW-50).
+  {func}`~snaplab_tools.timescales.zero_crossing_interp` now calls it with ``threshold=0``; its
+  results are unchanged.
+- {func}`~snaplab_tools.stats.icc`: intraclass correlation, ICC(1,1), ICC(2,1) or ICC(3,1) (Shrout &
+  Fleiss 1979), per feature for a 3-D input, with listwise deletion of missing values.
+
 ## 0.1.1
 
 ### Added

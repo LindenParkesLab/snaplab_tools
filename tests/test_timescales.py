@@ -241,6 +241,7 @@ def test_estimators_disagree_with_each_other(acf_matrix):
 # --------------------------------------------------------------------------------------------
 from snaplab_tools.timescales import (  # noqa: E402  (kept beside the tests that need them)
     acf_ratio_21,
+    crossing_interp,
     tau_expfit_free,
     tau_ratio_21,
     zero_crossing_interp,
@@ -336,6 +337,20 @@ def test_zero_crossing_interp_on_a_known_line():
     acf = np.array([1.0, 0.6, 0.3, -0.1, -0.2])
     assert zero_crossing_interp(acf, tr=2.0) == pytest.approx(5.5)
     assert np.isnan(zero_crossing_interp(np.array([1.0, 0.5, 0.2]), tr=1.0))
+
+
+def test_crossing_interp_on_a_known_line():
+    """Crossing of 0.5 between 0.6 at lag 1 and 0.3 at lag 2 is at lag 1 + 1/3."""
+    acf = np.array([[1.0, 0.6, 0.3, -0.1, -0.2], [1.0, 0.9, 0.8, 0.7, 0.6]])
+    np.testing.assert_allclose(crossing_interp(acf, tr=2.0, threshold=0.5), [2 * (1 + 1 / 3), np.nan])
+    assert crossing_interp(acf[0], tr=0.5, threshold=0.0) == zero_crossing_interp(acf[0], tr=0.5)
+
+
+def test_crossing_interp_is_within_one_step_below_decay_time(acf_matrix):
+    for threshold in (0.5, 1 / np.e, 0.0):
+        coarse = decay_time(acf_matrix, tr=0.1, threshold=threshold)
+        fine = crossing_interp(acf_matrix, tr=0.1, threshold=threshold)
+        assert np.all((fine <= coarse) & (fine > coarse - 0.1))
 
 
 def test_ratio_and_tau_are_nan_outside_their_domain():

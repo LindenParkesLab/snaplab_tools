@@ -27,6 +27,13 @@ Amplitude-invariant estimators
     long-tau tail, increasingly so as noise grows. Aggregate the ratio and convert the aggregate
     (``-tr / ln(median ratio)``); a median of per-cell tau is biased short.
 
+Detrended fluctuation analysis
+    :func:`dfa_fluctuation` (the fluctuation function F(n) of a series), :func:`dfa_exponent` (the
+    log-log slope of F(n) over a range of scales) and :func:`dfa` (both in one call) describe
+    long-range temporal correlations directly from a series rather than from its ACF. Typical use is
+    on the amplitude envelope of a band-limited signal (Linkenkaer-Hansen et al. 2001; Hardstone et
+    al. 2012).
+
 They disagree, and that is the point: an ACF is a curve, and every INT measure is a different
 scalar summary of it. A map built with one estimator is not interchangeable with a map built with
 another, so say which you used.
@@ -47,6 +54,7 @@ __all__ = [
     'compute_acf',
     'zero_crossing',
     'zero_crossing_interp',
+    'crossing_interp',
     'auc',
     'decay_time',
     'lag_one',
@@ -55,6 +63,9 @@ __all__ = [
     'tau_expfit_free',
     'compute_timescale',
     'TIMESCALE_METHODS',
+    'dfa_fluctuation',
+    'dfa_exponent',
+    'dfa',
 ]
 
 
@@ -205,16 +216,43 @@ def zero_crossing_interp(acf, tr=1.0):
         Interpolated crossing time. NaN where the ACF never goes negative, as for
         :func:`zero_crossing`.
     """
+    return crossing_interp(acf, tr, threshold=0.0)
+
+
+def crossing_interp(acf, tr=1.0, threshold=0.0):
+    """First crossing of `threshold` by the ACF, refined by linear interpolation between lags.
+
+    The general form of :func:`zero_crossing_interp` (``threshold=0``). With ``threshold=0.5`` it is
+    the sub-sample ACW-50 (the half-width of the ACF); :func:`decay_time` gives the same crossing on
+    the integer-lag grid. If ``k`` is the first lag at which the ACF is below `threshold`, the
+    crossing is placed on the straight line between lags ``k - 1`` and ``k``, so the result always
+    lies in ``[(k - 1) * tr, k * tr)``.
+
+    Parameters
+    ----------
+    acf : (n_lags,) or (n_regions, n_lags) array-like
+        Autocorrelation function(s), as returned by :func:`compute_acf`.
+    tr : float
+        Sampling interval in seconds. The default of 1.0 returns lags.
+    threshold : float
+        ACF value whose first crossing is reported.
+
+    Returns
+    -------
+    float or (n_regions,) ndarray
+        Interpolated crossing time. NaN where the ACF never falls below `threshold`, and where the
+        lag before the first crossing is NaN. 0 where lag 0 is already below `threshold`.
+    """
     acf, was_1d = _as_2d(acf)
-    first = _first_below(acf, 0.0)
+    first = _first_below(acf, threshold)
     out = np.full(acf.shape[0], np.nan)
 
-    out[first == 0] = 0.0      # lag 0 already negative: not a real ACF, but keep zero_crossing's answer
+    out[first == 0] = 0.0      # lag 0 already below: not a real ACF, but keep the integer-lag answer
     rows = np.flatnonzero(first >= 1)
     if rows.size:
         k = first[rows].astype(int)
-        before, after = acf[rows, k - 1], acf[rows, k]     # before >= 0 > after, so the step is > 0
-        out[rows] = (k - 1 + before / (before - after)) * tr
+        before, after = acf[rows, k - 1], acf[rows, k]     # before >= threshold > after
+        out[rows] = (k - 1 + (before - threshold) / (before - after)) * tr
     return _unwrap(out, was_1d)
 
 
@@ -554,3 +592,165 @@ def compute_timescale(acf, tr=1.0, method='zero_crossing', verbose=True):
         )
 
     return TIMESCALE_METHODS[method](acf, tr)
+
+
+# --------------------------------------------------------------------------------------------
+# Detrended fluctuation analysis
+# --------------------------------------------------------------------------------------------
+def dfa_fluctuation(data, scales, overlap=0.5, order=1, good=None, return_counts=False):
+    """Fluctuation function F(n) of detrended fluctuation analysis (DFA).
+
+    The series is demeaned and integrated (the *profile*). For each scale ``n`` the profile is cut
+    into segments of ``n`` samples, starting every ``n * (1 - overlap)`` samples; a polynomial of
+    degree `order` is fitted to each segment by least squares, and F(n) is the root of the mean
+    squared residual over all segments (Peng et al. 1994; Hardstone et al. 2012).
+
+    Parameters
+    ----------
+    data : (n_timepoints,) or (n_signals, n_timepoints) array-like
+        Time series, e.g. amplitude envelopes. A single series returns a single F(n).
+    scales : sequence of int
+        Segment lengths in samples. Each must be at least ``order + 2``.
+    overlap : float
+        Fraction of a segment shared with the next, in [0, 1). 0.5 is the common choice.
+    order : int
+        Degree of the detrending polynomial (1 = DFA-1, linear detrending).
+    good : (n_timepoints,) bool array-like, optional
+        Usable samples. Segments that contain any unusable sample are skipped; the remaining segments
+        are unaffected by the unusable values, because an unusable sample only shifts the profile of
+        later samples by a constant, which the detrending removes. The mean is taken over usable
+        samples. The other way to handle gaps is to delete the unusable samples and concatenate the
+        rest before calling this function.
+    return_counts : bool
+        Also return the number of segments used at each scale.
+
+    Returns
+    -------
+    fluctuation : (n_scales,) or (n_signals, n_scales) ndarray
+        F(n), in the units of `data` times samples. NaN at a scale with no complete segment.
+    counts : (n_scales,) int ndarray
+        Segments per scale; only with ``return_counts=True``. To pool several recordings, average
+        ``F**2`` weighted by `counts` and take the square root.
+
+    Notes
+    -----
+    Only complete segments are used, starting from the first sample; samples after the last complete
+    segment of a scale do not enter that scale.
+    """
+    x = np.asarray(data, dtype=float)
+    single = x.ndim == 1
+    x = np.atleast_2d(x)
+    if x.ndim != 2:
+        raise ValueError(f'data must be 1-D or 2-D, got {x.ndim}-D')
+    if not 0 <= overlap < 1:
+        raise ValueError(f'overlap must be in [0, 1), got {overlap}')
+    n_signals, n_times = x.shape
+    good = np.ones(n_times, bool) if good is None else np.asarray(good, dtype=bool)
+    if good.shape != (n_times,):
+        raise ValueError(f'good must have shape ({n_times},), got {good.shape}')
+    scales = np.asarray(scales, dtype=int)
+    if (scales < order + 2).any():
+        raise ValueError(f'every scale must be at least order + 2 = {order + 2} samples')
+
+    fluctuation = np.full((n_signals, len(scales)), np.nan)
+    counts = np.zeros(len(scales), dtype=int)
+    if good.any():
+        centred = np.where(good, x - x[:, good].mean(axis=1, keepdims=True), 0.0)
+        profile = np.cumsum(centred, axis=1)
+        n_bad = np.r_[0, np.cumsum(~good)]
+        for j, n in enumerate(scales):
+            if n > n_times:
+                continue
+            starts = np.arange(0, n_times - n + 1, max(1, int(n * (1 - overlap))))
+            starts = starts[n_bad[starts + n] == n_bad[starts]]
+            if starts.size == 0:
+                continue
+            segments = np.lib.stride_tricks.sliding_window_view(profile, n, axis=1)[:, starts]
+            segments = segments - segments.mean(axis=-1, keepdims=True)
+            # Orthonormal polynomial basis; its constant column is handled by the centring above.
+            basis = np.linalg.qr(np.vander(np.arange(n, dtype=float), order + 1, increasing=True))[0][:, 1:]
+            resid = segments - (segments @ basis) @ basis.T
+            fluctuation[:, j] = np.sqrt((resid ** 2).mean(axis=(1, 2)))
+            counts[j] = starts.size
+
+    fluctuation = fluctuation[0] if single else fluctuation
+    return (fluctuation, counts) if return_counts else fluctuation
+
+
+def dfa_exponent(scales, fluctuation, fit_range=None):
+    """DFA exponent: the least-squares slope of log F(n) on log n.
+
+    Parameters
+    ----------
+    scales : (n_scales,) array-like
+        Scales at which `fluctuation` was computed (any unit).
+    fluctuation : (n_scales,) or (n_signals, n_scales) array-like
+        F(n), as returned by :func:`dfa_fluctuation`.
+    fit_range : (low, high), optional
+        Fit only scales with ``low <= n <= high`` (same unit as `scales`). Default: all scales.
+
+    Returns
+    -------
+    alpha : float or (n_signals,) ndarray
+        The exponent. 0.5 for uncorrelated noise, 1 for 1/f noise, 1.5 for a random walk. NaN for a
+        signal with a non-finite or non-positive F(n) at any fitted scale.
+    r2 : float or (n_signals,) ndarray
+        Coefficient of determination of the log-log line.
+
+    Raises
+    ------
+    ValueError
+        If fewer than two scales fall in `fit_range`.
+    """
+    scales = np.asarray(scales, dtype=float)
+    F = np.asarray(fluctuation, dtype=float)
+    single = F.ndim == 1
+    F = np.atleast_2d(F)
+    sel = np.ones(len(scales), bool)
+    if fit_range is not None:
+        sel = (scales >= fit_range[0]) & (scales <= fit_range[1])
+    if sel.sum() < 2:
+        raise ValueError(f'need at least two scales in the fit range, got {int(sel.sum())}')
+    lx = np.log10(scales[sel])
+    with np.errstate(divide='ignore', invalid='ignore'):
+        ly = np.log10(F[:, sel])
+    ok = np.isfinite(ly).all(axis=1)
+    alpha, r2 = np.full(len(F), np.nan), np.full(len(F), np.nan)
+    if ok.any():
+        dx = lx - lx.mean()
+        dy = ly[ok] - ly[ok].mean(axis=1, keepdims=True)
+        alpha[ok] = dy @ dx / (dx @ dx)
+        ss_tot = (dy ** 2).sum(axis=1)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            r2[ok] = 1 - ((dy - np.outer(alpha[ok], dx)) ** 2).sum(axis=1) / ss_tot
+    return (float(alpha[0]), float(r2[0])) if single else (alpha, r2)
+
+
+def dfa(data, scales, fit_range=None, overlap=0.5, order=1, good=None):
+    """DFA exponent of one or more series: :func:`dfa_fluctuation`, then :func:`dfa_exponent`.
+
+    Parameters
+    ----------
+    data : (n_timepoints,) or (n_signals, n_timepoints) array-like
+    scales : sequence of int
+        Segment lengths in samples.
+    fit_range : (low, high), optional
+        Range of scales, in samples, over which the exponent is fitted. Default: all scales.
+    overlap, order, good
+        As in :func:`dfa_fluctuation`.
+
+    Returns
+    -------
+    alpha, r2 : float or (n_signals,) ndarray
+        As in :func:`dfa_exponent`.
+
+    Examples
+    --------
+    >>> rng = np.random.default_rng(0)
+    >>> alpha, r2 = dfa(rng.standard_normal(20000), scales=np.unique(np.geomspace(10, 1000, 15).astype(int)))
+    >>> round(alpha, 1)
+    0.5
+    """
+    F = dfa_fluctuation(data, scales, overlap=overlap, order=order, good=good)
+    return dfa_exponent(scales, F, fit_range=fit_range)
+

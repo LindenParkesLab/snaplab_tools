@@ -37,6 +37,7 @@ Signal-processing utilities.
    compute_acf
    zero_crossing
    zero_crossing_interp
+   crossing_interp
    auc
    decay_time
    lag_one
@@ -44,6 +45,9 @@ Signal-processing utilities.
    tau_ratio_21
    tau_expfit_free
    compute_timescale
+   dfa_fluctuation
+   dfa_exponent
+   dfa
 ```
 
 ```{eval-rst}

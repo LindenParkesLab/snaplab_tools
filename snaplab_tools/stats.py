@@ -31,6 +31,10 @@ Multiple comparisons, outliers, and decomposition
     plain scikit-learn refuses to do. :func:`get_null_p` turns any observed statistic plus any
     vector of null values into a p-value.
 
+Reliability
+    :func:`icc` gives the intraclass correlation of repeated measurements (test-retest, between
+    runs or raters), in the Shrout & Fleiss forms ICC(1,1), ICC(2,1) and ICC(3,1).
+
 Small helpers: :func:`significance_stars` formats a p-value for a figure annotation.
 
 For spatial null models -- the right way to test a brain-map correlation, since parcels are not
@@ -65,6 +69,7 @@ __all__ = [
     'decoupling_test',
     'get_null_p',
     'get_fdr_p',
+    'icc',
     'winsorize',
     'winsorize_iqr',
     'pca_with_nan_handling',
@@ -765,6 +770,82 @@ def decoupling_test(brain_maps_a, brain_maps_b, reference_map,
     rho_b = subject_wise_coupling(brain_maps_b, reference_map, method=method)
     # Subjects with an undefined coupling in either condition are dropped by the test.
     return paired_coupling_test(rho_a, rho_b, alternative=alternative)
+
+# =============================================================================
+# Reliability
+# =============================================================================
+
+
+_ICC_KINDS = ('ICC(1,1)', 'ICC(2,1)', 'ICC(3,1)')
+
+
+def _icc_complete(x, kind):
+    """ICC of one complete (n_subjects, n_measurements) table."""
+    n, k = x.shape
+    if n < 2 or k < 2:
+        return np.nan
+    grand = x.mean()
+    ss_rows = k * ((x.mean(axis=1) - grand) ** 2).sum()
+    ss_cols = n * ((x.mean(axis=0) - grand) ** 2).sum()
+    ss_total = ((x - grand) ** 2).sum()
+    ms_rows = ss_rows / (n - 1)
+    ms_err = (ss_total - ss_rows - ss_cols) / ((n - 1) * (k - 1))
+    with np.errstate(divide='ignore', invalid='ignore'):
+        if kind == 'ICC(1,1)':
+            ms_within = (ss_total - ss_rows) / (n * (k - 1))
+            return (ms_rows - ms_within) / (ms_rows + (k - 1) * ms_within)
+        if kind == 'ICC(2,1)':
+            ms_cols = ss_cols / (k - 1)
+            return (ms_rows - ms_err) / (ms_rows + (k - 1) * ms_err + k * (ms_cols - ms_err) / n)
+        return (ms_rows - ms_err) / (ms_rows + (k - 1) * ms_err)
+
+
+def icc(data, kind='ICC(3,1)'):
+    """Intraclass correlation of repeated measurements (Shrout & Fleiss 1979).
+
+    Parameters
+    ----------
+    data : (n_subjects, n_measurements) or (n_subjects, n_measurements, n_features) array-like
+        Rows are subjects (targets), columns are the repeated measurements (runs, sessions, raters).
+        With a third axis, one ICC is computed per feature (e.g. per parcel).
+    kind : {'ICC(3,1)', 'ICC(2,1)', 'ICC(1,1)'}
+        ``'ICC(3,1)'``: two-way mixed, consistency, single measurement -- systematic differences
+        between measurements (e.g. a run-order effect) do not count as unreliability.
+        ``'ICC(2,1)'``: two-way random, absolute agreement, single measurement -- they do.
+        ``'ICC(1,1)'``: one-way random, single measurement.
+
+    Returns
+    -------
+    float or (n_features,) ndarray
+        The ICC. Subjects with a missing (NaN) measurement are dropped (listwise, per feature); NaN
+        when fewer than two complete subjects remain.
+
+    Notes
+    -----
+    The estimates can be negative when the between-subject variance is smaller than the error
+    variance; they are returned as computed, not clipped at zero.
+
+    Examples
+    --------
+    >>> ratings = np.array([[9, 2, 5, 8], [6, 1, 3, 2], [8, 4, 6, 8],
+    ...                     [7, 1, 2, 6], [10, 5, 6, 9], [6, 2, 4, 7]])
+    >>> round(icc(ratings, 'ICC(3,1)'), 2)
+    0.71
+    """
+    if kind not in _ICC_KINDS:
+        raise ValueError(f'kind must be one of {_ICC_KINDS}, got {kind!r}')
+    x = np.asarray(data, dtype=float)
+    if x.ndim not in (2, 3):
+        raise ValueError(f'data must be 2-D or 3-D, got {x.ndim}-D')
+    single = x.ndim == 2
+    if single:
+        x = x[:, :, np.newaxis]
+    out = np.full(x.shape[2], np.nan)
+    for j in range(x.shape[2]):
+        table = x[:, :, j]
+        out[j] = _icc_complete(table[np.isfinite(table).all(axis=1)], kind)
+    return float(out[0]) if single else out
+
 
 # =============================================================================
 # Multiple comparisons, outliers, and decomposition
