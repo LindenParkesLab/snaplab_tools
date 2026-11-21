@@ -1,0 +1,11 @@
+index	name	hemisphere	cortex	subcortex	cerebellum	color
+1	Region1	bilateral	False	False	True	#2ea698
+2	Region2	bilateral	False	False	True	#549720
+3	Region3	bilateral	False	False	True	#336693
+4	Region4	bilateral	False	False	True	#0e187d
+5	Region5	bilateral	False	False	True	#a517a2
+6	Region6	bilateral	False	False	True	#af2b46
+7	Region7	bilateral	False	False	True	#e17db0
+8	Region8	bilateral	False	False	True	#eca108
+9	Region9	bilateral	False	False	True	#fbd975
+10	Region10	bilateral	False	False	True	#7775f5

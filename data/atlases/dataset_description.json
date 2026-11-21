@@ -1,5 +1,12 @@
 {
-    "BIDSVersion": "1.8.0",
-    "DatasetType": "atlas",
-    "Name": "SNaP Lab atlases"
+    "Name": "SNaP Lab atlases",
+    "BIDSVersion": "1.11.0",
+    "DatasetType": "derivative",
+    "GeneratedBy": [
+        {
+            "Name": "snaplab_tools build_atlases.py",
+            "CodeURL": "code/build_atlases.py"
+        }
+    ],
+    "License": "Each atlas carries the terms of its sources; see atlas-<name>_description.json and THIRD_PARTY_NOTICES.md in the snaplab_tools repository."
 }

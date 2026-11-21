@@ -1,0 +1,19 @@
+{
+    "Name": "Schaefer1007MSA2",
+    "Description": "Schaefer1007 + MSA2: built by code/build_atlases.py. Labels are numbered Schaefer1007, then MSA2. Where they overlap, MSA overrides cortex.",
+    "License": "Inherits the terms of its source atlases.",
+    "ReferencesAndLinks": [
+        "Schaefer, A., Kong, R., Gordon, E. M., Laumann, T. O., Zuo, X. N., Holmes, A. J., Eickhoff, S. B., & Yeo, B. T. (2018). Local-global parcellation of the human cerebral cortex from intrinsic functional connectivity MRI. Cerebral Cortex, 28(9), 3095-3114. https://doi.org/10.1093/cercor/bhx179",
+        "https://github.com/ThomasYeoLab/CBIG/tree/master/stable_projects/brain_parcellation/Schaefer2018_LocalGlobal",
+        "Tian, Y., Margulies, D. S., Breakspear, M., & Zalesky, A. (2020). Topographic organization of the human subcortex unveiled with functional connectivity gradients. Nature Neuroscience, 23, 1421-1432. https://doi.org/10.1038/s41593-020-00711-6",
+        "https://github.com/yetianmed/subcortex"
+    ],
+    "SourceAtlases": {
+        "Schaefer1007": {
+            "License": "MIT (https://github.com/ThomasYeoLab/CBIG/blob/master/LICENSE.md)"
+        },
+        "MSA2": {
+            "License": "See https://github.com/yetianmed/subcortex"
+        }
+    }
+}

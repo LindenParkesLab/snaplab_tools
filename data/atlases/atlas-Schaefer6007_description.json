@@ -1,0 +1,9 @@
+{
+    "Name": "Schaefer6007",
+    "Description": "Schaefer 2018 cortical parcellation, 600 parcels, 7-network order. Volumes from TemplateFlow; fsLR from CBIG (medial wall removed).",
+    "License": "MIT (https://github.com/ThomasYeoLab/CBIG/blob/master/LICENSE.md)",
+    "ReferencesAndLinks": [
+        "Schaefer, A., Kong, R., Gordon, E. M., Laumann, T. O., Zuo, X. N., Holmes, A. J., Eickhoff, S. B., & Yeo, B. T. (2018). Local-global parcellation of the human cerebral cortex from intrinsic functional connectivity MRI. Cerebral Cortex, 28(9), 3095-3114. https://doi.org/10.1093/cercor/bhx179",
+        "https://github.com/ThomasYeoLab/CBIG/tree/master/stable_projects/brain_parcellation/Schaefer2018_LocalGlobal"
+    ]
+}

@@ -170,3 +170,5 @@ scripts/scratch/
 
 VSCode
 snaplab_tools.code-workspace
+# Fetched by data/atlases/code/fetch_atlaspack.sh (not redistributed here)
+data/AtlasPack/

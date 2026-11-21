@@ -1,0 +1,27 @@
+{
+    "Name": "MSA1",
+    "Resolution": "1 mm isotropic",
+    "index": {
+        "Description": "Label value in the image."
+    },
+    "name": {
+        "Description": "Region name."
+    },
+    "hemisphere": {
+        "Description": "Hemisphere the region belongs to, from its name.",
+        "Levels": {
+            "L": "left",
+            "R": "right",
+            "bilateral": "spans both hemispheres"
+        }
+    },
+    "cortex": {
+        "Description": "Region comes from a cortical atlas (Schaefer or Glasser)."
+    },
+    "subcortex": {
+        "Description": "Region comes from the Melbourne Subcortex Atlas (MSA)."
+    },
+    "cerebellum": {
+        "Description": "Region comes from the MDTB10 cerebellar atlas."
+    }
+}

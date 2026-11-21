@@ -80,10 +80,11 @@ parcellation of human cerebral cortex. *Nature*, 536, 171–178.
 
 ## In `data/atlases/` (not installed with the package)
 
-### Glasser (HCP-MMP1.0)
+### Glasser (HCP-MMP1.0): `Glasser360`
 
-Taken from [PennLINC/xcp_d](https://github.com/PennLINC/xcp_d/tree/main/xcp_d/data/atlases),
-which redistributes the parcellation in NIfTI form.
+Taken from [PennLINC/xcp_d](https://github.com/PennLINC/xcp_d), which redistributes the
+parcellation: the NIfTI volumes from its earlier releases, and the fsLR 32k file
+(`sourcedata/xcpd/`) from the atlases built into XCP-D 26.3.0.
 
 Glasser, M.F., Coalson, T.S., Robinson, E.C., Hacker, C.D., Harwell, J., Yacoub, E., Ugurbil, K.,
 Andersson, J., Beckmann, C.F., Jenkinson, M., Smith, S.M., & Van Essen, D.C. (2016). A multi-modal
@@ -111,8 +112,22 @@ Neuroscience*, 22, 1371–1378. <https://doi.org/10.1038/s41593-019-0436-x>
 
 ### Combined atlases
 
-`GlasserMSA/`, `SchaeferMSA/`, `*MDTB10/` are combinations produced in this repository from the
-above. They inherit the terms of their constituent atlases.
+`Glasser360MSA*`, `Schaefer*MSA*` and `*MDTB10` are combinations produced in this repository from
+the above (by `data/atlases/code/build_atlases.py`). They inherit the terms of their constituent
+atlases.
+
+### HCP 91k grayordinates
+
+`data/atlases/sourcedata/hcp/91282_Greyordinates.dscalar.nii`, from
+[HCPpipelines](https://github.com/Washington-University/HCPpipelines) (`global/templates/`),
+defines the 91k fsLR grayordinates the CIFTI atlases are built on. HCPpipelines license:
+<https://github.com/Washington-University/HCPpipelines/blob/master/LICENSE.md>.
+
+### AtlasPack (4S atlases): not redistributed
+
+`data/atlases/code/fetch_atlaspack.sh` downloads PennLINC's
+[AtlasPack](https://github.com/PennLINC/AtlasPack) (CC BY-ND) into `data/AtlasPack/`, which is
+gitignored.
 
 ---
 

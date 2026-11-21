@@ -1,0 +1,19 @@
+{
+    "Name": "Glasser360MSA3",
+    "Description": "Glasser360 + MSA3: built by code/build_atlases.py. Labels are numbered Glasser360, then MSA3. Where they overlap, MSA overrides cortex.",
+    "License": "Inherits the terms of its source atlases.",
+    "ReferencesAndLinks": [
+        "Glasser, M. F., Coalson, T. S., Robinson, E. C., et al. (2016). A multi-modal parcellation of human cerebral cortex. Nature, 536, 171-178. https://doi.org/10.1038/nature18933",
+        "https://github.com/PennLINC/xcp_d",
+        "Tian, Y., Margulies, D. S., Breakspear, M., & Zalesky, A. (2020). Topographic organization of the human subcortex unveiled with functional connectivity gradients. Nature Neuroscience, 23, 1421-1432. https://doi.org/10.1038/s41593-020-00711-6",
+        "https://github.com/yetianmed/subcortex"
+    ],
+    "SourceAtlases": {
+        "Glasser360": {
+            "License": "HCP Data Use Terms apply to the original release; see THIRD_PARTY_NOTICES.md"
+        },
+        "MSA3": {
+            "License": "See https://github.com/yetianmed/subcortex"
+        }
+    }
+}

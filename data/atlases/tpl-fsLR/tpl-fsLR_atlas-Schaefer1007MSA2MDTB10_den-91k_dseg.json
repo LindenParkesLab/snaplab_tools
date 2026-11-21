@@ -1,0 +1,33 @@
+{
+    "Name": "Schaefer1007MSA2MDTB10",
+    "Density": {
+        "91k": "91282 grayordinates: 59412 cortical surface vertices (32k fsLR) and 31870 subcortical and cerebellar voxels (MNI152NLin6Asym, 2 mm)."
+    },
+    "GeneratedBy": "code/build_atlases.py",
+    "index": {
+        "Description": "Label value in the image."
+    },
+    "name": {
+        "Description": "Region name."
+    },
+    "hemisphere": {
+        "Description": "Hemisphere the region belongs to, from its name.",
+        "Levels": {
+            "L": "left",
+            "R": "right",
+            "bilateral": "spans both hemispheres"
+        }
+    },
+    "cortex": {
+        "Description": "Region comes from a cortical atlas (Schaefer or Glasser)."
+    },
+    "subcortex": {
+        "Description": "Region comes from the Melbourne Subcortex Atlas (MSA)."
+    },
+    "cerebellum": {
+        "Description": "Region comes from the MDTB10 cerebellar atlas."
+    },
+    "templateflow_name": {
+        "Description": "The parcel's name in TemplateFlow's Schaefer2018 release, which predates CBIG renaming some parcels. Same parcel, same index; `name` holds the current CBIG name."
+    }
+}

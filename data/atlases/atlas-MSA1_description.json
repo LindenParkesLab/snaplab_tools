@@ -1,0 +1,9 @@
+{
+    "Name": "MSA1",
+    "Description": "Melbourne Subcortex Atlas (Tian et al. 2020), scale S1 (16 parcels), 3T group parcellation.",
+    "License": "See https://github.com/yetianmed/subcortex",
+    "ReferencesAndLinks": [
+        "Tian, Y., Margulies, D. S., Breakspear, M., & Zalesky, A. (2020). Topographic organization of the human subcortex unveiled with functional connectivity gradients. Nature Neuroscience, 23, 1421-1432. https://doi.org/10.1038/s41593-020-00711-6",
+        "https://github.com/yetianmed/subcortex"
+    ]
+}

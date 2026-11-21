@@ -1,0 +1,393 @@
+index	name	hemisphere	cortex	subcortex	cerebellum	cifti_label	community_yeo	community_mesulam	community_economo
+1	Right_V1	R	True	False	False	R_V1_ROI	visual	paralimbic	sensory 2
+2	Right_MST	R	True	False	False	R_MST_ROI	dorsal attention	unimodal	sensory 1
+3	Right_V6	R	True	False	False	R_V6_ROI	visual	unimodal	sensory 1
+4	Right_V2	R	True	False	False	R_V2_ROI	visual	paralimbic	sensory 1
+5	Right_V3	R	True	False	False	R_V3_ROI	visual	paralimbic	sensory 1
+6	Right_V4	R	True	False	False	R_V4_ROI	visual	unimodal	sensory 1
+7	Right_V8	R	True	False	False	R_V8_ROI	visual	unimodal	association 1
+8	Right_4	R	True	False	False	R_4_ROI	somatosensory	paralimbic	motor
+9	Right_3b	R	True	False	False	R_3b_ROI	somatosensory	paralimbic	sensory 2
+10	Right_FEF	R	True	False	False	R_FEF_ROI	dorsal attention	paralimbic	motor
+11	Right_PEF	R	True	False	False	R_PEF_ROI	dorsal attention	paralimbic	motor
+12	Right_55b	R	True	False	False	R_55b_ROI	somatosensory	paralimbic	motor
+13	Right_V3A	R	True	False	False	R_V3A_ROI	visual	unimodal	association 1
+14	Right_RSC	R	True	False	False	R_RSC_ROI	default mode	idiotypic	limbic
+15	Right_POS2	R	True	False	False	R_POS2_ROI	default mode	heteromodal	association 1
+16	Right_V7	R	True	False	False	R_V7_ROI	visual	unimodal	association 1
+17	Right_IPS1	R	True	False	False	R_IPS1_ROI	dorsal attention	unimodal	association 1
+18	Right_FFC	R	True	False	False	R_FFC_ROI	visual	unimodal	association 1
+19	Right_V3B	R	True	False	False	R_V3B_ROI	visual	unimodal	association 1
+20	Right_LO1	R	True	False	False	R_LO1_ROI	visual	unimodal	sensory 1
+21	Right_LO2	R	True	False	False	R_LO2_ROI	visual	unimodal	sensory 1
+22	Right_PIT	R	True	False	False	R_PIT_ROI	visual	unimodal	sensory 1
+23	Right_MT	R	True	False	False	R_MT_ROI	visual	unimodal	sensory 1
+24	Right_A1	R	True	False	False	R_A1_ROI	somatosensory	paralimbic	sensory 2
+25	Right_PSL	R	True	False	False	R_PSL_ROI	ventral attention	unimodal	association 2
+26	Right_SFL	R	True	False	False	R_SFL_ROI	default mode	unimodal	association 1
+27	Right_PCV	R	True	False	False	R_PCV_ROI	default mode	heteromodal	association 1
+28	Right_STV	R	True	False	False	R_STV_ROI	default mode	unimodal	association 2
+29	Right_7Pm	R	True	False	False	R_7Pm_ROI	frontoparietal	heteromodal	association 1
+30	Right_7m	R	True	False	False	R_7m_ROI	default mode	heteromodal	association 1
+31	Right_POS1	R	True	False	False	R_POS1_ROI	default mode	heteromodal	association 1
+32	Right_23d	R	True	False	False	R_23d_ROI	default mode	idiotypic	limbic
+33	Right_v23ab	R	True	False	False	R_v23ab_ROI	default mode	heteromodal	association 1
+34	Right_d23ab	R	True	False	False	R_d23ab_ROI	default mode	idiotypic	limbic
+35	Right_31pv	R	True	False	False	R_31pv_ROI	default mode	heteromodal	association 1
+36	Right_5m	R	True	False	False	R_5m_ROI	somatosensory	paralimbic	motor
+37	Right_5mv	R	True	False	False	R_5mv_ROI	ventral attention	paralimbic	motor
+38	Right_23c	R	True	False	False	R_23c_ROI	ventral attention	paralimbic	association 1
+39	Right_5L	R	True	False	False	R_5L_ROI	somatosensory	unimodal	motor
+40	Right_24dd	R	True	False	False	R_24dd_ROI	somatosensory	paralimbic	motor
+41	Right_24dv	R	True	False	False	R_24dv_ROI	somatosensory	unimodal	association 1
+42	Right_7AL	R	True	False	False	R_7AL_ROI	dorsal attention	heteromodal	association 1
+43	Right_SCEF	R	True	False	False	R_SCEF_ROI	ventral attention	unimodal	association 1
+44	Right_6ma	R	True	False	False	R_6ma_ROI	ventral attention	unimodal	association 1
+45	Right_7Am	R	True	False	False	R_7Am_ROI	dorsal attention	heteromodal	association 1
+46	Right_7PL	R	True	False	False	R_7PL_ROI	dorsal attention	heteromodal	association 1
+47	Right_7PC	R	True	False	False	R_7PC_ROI	dorsal attention	heteromodal	association 1
+48	Right_LIPv	R	True	False	False	R_LIPv_ROI	dorsal attention	heteromodal	association 1
+49	Right_VIP	R	True	False	False	R_VIP_ROI	dorsal attention	heteromodal	association 1
+50	Right_MIP	R	True	False	False	R_MIP_ROI	dorsal attention	heteromodal	association 1
+51	Right_1	R	True	False	False	R_1_ROI	somatosensory	paralimbic	sensory 2
+52	Right_2	R	True	False	False	R_2_ROI	somatosensory	unimodal	sensory 2
+53	Right_3a	R	True	False	False	R_3a_ROI	somatosensory	paralimbic	sensory 2
+54	Right_6d	R	True	False	False	R_6d_ROI	somatosensory	paralimbic	motor
+55	Right_6mp	R	True	False	False	R_6mp_ROI	somatosensory	paralimbic	motor
+56	Right_6v	R	True	False	False	R_6v_ROI	somatosensory	paralimbic	motor
+57	Right_p24pr	R	True	False	False	R_p24pr_ROI	ventral attention	idiotypic	limbic
+58	Right_33pr	R	True	False	False	R_33pr_ROI	frontoparietal	idiotypic	limbic
+59	Right_a24pr	R	True	False	False	R_a24pr_ROI	ventral attention	idiotypic	limbic
+60	Right_p32pr	R	True	False	False	R_p32pr_ROI	ventral attention	idiotypic	association 1
+61	Right_a24	R	True	False	False	R_a24_ROI	default mode	idiotypic	limbic
+62	Right_d32	R	True	False	False	R_d32_ROI	default mode	heteromodal	association 1
+63	Right_8BM	R	True	False	False	R_8BM_ROI	frontoparietal	heteromodal	association 1
+64	Right_p32	R	True	False	False	R_p32_ROI	default mode	idiotypic	sensory 1
+65	Right_10r	R	True	False	False	R_10r_ROI	default mode	heteromodal	sensory 1
+66	Right_47m	R	True	False	False	R_47m_ROI	default mode	idiotypic	sensory 1
+67	Right_8Av	R	True	False	False	R_8Av_ROI	default mode	unimodal	association 1
+68	Right_8Ad	R	True	False	False	R_8Ad_ROI	default mode	heteromodal	association 1
+69	Right_9m	R	True	False	False	R_9m_ROI	default mode	heteromodal	association 1
+70	Right_8BL	R	True	False	False	R_8BL_ROI	default mode	heteromodal	association 1
+71	Right_9p	R	True	False	False	R_9p_ROI	default mode	heteromodal	association 1
+72	Right_10d	R	True	False	False	R_10d_ROI	default mode	heteromodal	association 1
+73	Right_8C	R	True	False	False	R_8C_ROI	frontoparietal	unimodal	association 1
+74	Right_44	R	True	False	False	R_44_ROI	default mode	unimodal	association 1
+75	Right_45	R	True	False	False	R_45_ROI	default mode	heteromodal	association 1
+76	Right_47l	R	True	False	False	R_47l_ROI	default mode	heteromodal	sensory 1
+77	Right_a47r	R	True	False	False	R_a47r_ROI	default mode	heteromodal	sensory 1
+78	Right_6r	R	True	False	False	R_6r_ROI	ventral attention	paralimbic	motor
+79	Right_IFJa	R	True	False	False	R_IFJa_ROI	frontoparietal	unimodal	association 1
+80	Right_IFJp	R	True	False	False	R_IFJp_ROI	dorsal attention	unimodal	association 1
+81	Right_IFSp	R	True	False	False	R_IFSp_ROI	frontoparietal	unimodal	association 1
+82	Right_IFSa	R	True	False	False	R_IFSa_ROI	frontoparietal	heteromodal	association 1
+83	Right_p9-46v	R	True	False	False	R_p9-46v_ROI	frontoparietal	heteromodal	association 2
+84	Right_46	R	True	False	False	R_46_ROI	frontoparietal	heteromodal	association 2
+85	Right_a9-46v	R	True	False	False	R_a9-46v_ROI	frontoparietal	heteromodal	association 2
+86	Right_9-46d	R	True	False	False	R_9-46d_ROI	frontoparietal	heteromodal	association 2
+87	Right_9a	R	True	False	False	R_9a_ROI	default mode	heteromodal	association 2
+88	Right_10v	R	True	False	False	R_10v_ROI	limbic	heteromodal	sensory 1
+89	Right_a10p	R	True	False	False	R_a10p_ROI	default mode	heteromodal	association 2
+90	Right_10pp	R	True	False	False	R_10pp_ROI	limbic	heteromodal	association 2
+91	Right_11l	R	True	False	False	R_11l_ROI	frontoparietal	heteromodal	sensory 1
+92	Right_13l	R	True	False	False	R_13l_ROI	limbic	idiotypic	sensory 1
+93	Right_OFC	R	True	False	False	R_OFC_ROI	limbic	idiotypic	sensory 1
+94	Right_47s	R	True	False	False	R_47s_ROI	default mode	idiotypic	sensory 1
+95	Right_LIPd	R	True	False	False	R_LIPd_ROI	dorsal attention	heteromodal	association 1
+96	Right_6a	R	True	False	False	R_6a_ROI	dorsal attention	unimodal	motor
+97	Right_i6-8	R	True	False	False	R_i6-8_ROI	frontoparietal	unimodal	association 1
+98	Right_s6-8	R	True	False	False	R_s6-8_ROI	default mode	unimodal	association 1
+99	Right_43	R	True	False	False	R_43_ROI	ventral attention	unimodal	motor
+100	Right_OP4	R	True	False	False	R_OP4_ROI	somatosensory	unimodal	sensory 2
+101	Right_OP1	R	True	False	False	R_OP1_ROI	somatosensory	heteromodal	association 2
+102	Right_OP2-3	R	True	False	False	R_OP2-3_ROI	somatosensory	heteromodal	insula
+103	Right_52	R	True	False	False	R_52_ROI	somatosensory	unimodal	insula
+104	Right_RI	R	True	False	False	R_RI_ROI	somatosensory	unimodal	association 2
+105	Right_PFcm	R	True	False	False	R_PFcm_ROI	ventral attention	unimodal	association 2
+106	Right_PoI2	R	True	False	False	R_PoI2_ROI	ventral attention	idiotypic	insula
+107	Right_TA2	R	True	False	False	R_TA2_ROI	somatosensory	unimodal	association 2
+108	Right_FOP4	R	True	False	False	R_FOP4_ROI	ventral attention	heteromodal	association 1
+109	Right_MI	R	True	False	False	R_MI_ROI	ventral attention	idiotypic	insula
+110	Right_Pir	R	True	False	False	R_Pir_ROI	limbic	idiotypic	insula
+111	Right_AVI	R	True	False	False	R_AVI_ROI	frontoparietal	idiotypic	sensory 1
+112	Right_AAIC	R	True	False	False	R_AAIC_ROI	default mode	idiotypic	insula
+113	Right_FOP1	R	True	False	False	R_FOP1_ROI	ventral attention	heteromodal	motor
+114	Right_FOP3	R	True	False	False	R_FOP3_ROI	ventral attention	heteromodal	insula
+115	Right_FOP2	R	True	False	False	R_FOP2_ROI	somatosensory	unimodal	motor
+116	Right_PFt	R	True	False	False	R_PFt_ROI	dorsal attention	unimodal	association 2
+117	Right_AIP	R	True	False	False	R_AIP_ROI	dorsal attention	heteromodal	association 1
+118	Right_EC	R	True	False	False	R_EC_ROI	limbic	idiotypic	limbic
+119	Right_PreS	R	True	False	False	R_PreS_ROI	default mode	idiotypic	limbic
+120	Right_H	R	True	False	False	R_H_ROI	limbic	idiotypic	limbic
+121	Right_ProS	R	True	False	False	R_ProS_ROI	visual	paralimbic	sensory 1
+122	Right_PeEc	R	True	False	False	R_PeEc_ROI	limbic	idiotypic	limbic
+123	Right_STGa	R	True	False	False	R_STGa_ROI	default mode	idiotypic	association 2
+124	Right_PBelt	R	True	False	False	R_PBelt_ROI	somatosensory	unimodal	association 2
+125	Right_A5	R	True	False	False	R_A5_ROI	somatosensory	unimodal	association 2
+126	Right_PHA1	R	True	False	False	R_PHA1_ROI	default mode	idiotypic	limbic
+127	Right_PHA3	R	True	False	False	R_PHA3_ROI	visual	unimodal	association 1
+128	Right_STSda	R	True	False	False	R_STSda_ROI	default mode	unimodal	association 2
+129	Right_STSdp	R	True	False	False	R_STSdp_ROI	default mode	unimodal	association 2
+130	Right_STSvp	R	True	False	False	R_STSvp_ROI	default mode	unimodal	association 1
+131	Right_TGd	R	True	False	False	R_TGd_ROI	limbic	idiotypic	association 1
+132	Right_TE1a	R	True	False	False	R_TE1a_ROI	default mode	heteromodal	association 1
+133	Right_TE1p	R	True	False	False	R_TE1p_ROI	default mode	heteromodal	association 1
+134	Right_TE2a	R	True	False	False	R_TE2a_ROI	limbic	unimodal	association 1
+135	Right_TF	R	True	False	False	R_TF_ROI	limbic	unimodal	association 1
+136	Right_TE2p	R	True	False	False	R_TE2p_ROI	dorsal attention	unimodal	association 1
+137	Right_PHT	R	True	False	False	R_PHT_ROI	dorsal attention	heteromodal	association 1
+138	Right_PH	R	True	False	False	R_PH_ROI	dorsal attention	unimodal	association 1
+139	Right_TPOJ1	R	True	False	False	R_TPOJ1_ROI	somatosensory	heteromodal	association 2
+140	Right_TPOJ2	R	True	False	False	R_TPOJ2_ROI	dorsal attention	heteromodal	association 2
+141	Right_TPOJ3	R	True	False	False	R_TPOJ3_ROI	dorsal attention	heteromodal	association 2
+142	Right_DVT	R	True	False	False	R_DVT_ROI	visual	unimodal	association 1
+143	Right_PGp	R	True	False	False	R_PGp_ROI	dorsal attention	unimodal	association 2
+144	Right_IP2	R	True	False	False	R_IP2_ROI	frontoparietal	heteromodal	association 2
+145	Right_IP1	R	True	False	False	R_IP1_ROI	frontoparietal	heteromodal	association 2
+146	Right_IP0	R	True	False	False	R_IP0_ROI	dorsal attention	unimodal	association 2
+147	Right_PFop	R	True	False	False	R_PFop_ROI	ventral attention	heteromodal	association 2
+148	Right_PF	R	True	False	False	R_PF_ROI	ventral attention	heteromodal	association 2
+149	Right_PFm	R	True	False	False	R_PFm_ROI	default mode	heteromodal	association 2
+150	Right_PGi	R	True	False	False	R_PGi_ROI	default mode	heteromodal	association 2
+151	Right_PGs	R	True	False	False	R_PGs_ROI	default mode	heteromodal	association 2
+152	Right_V6A	R	True	False	False	R_V6A_ROI	visual	unimodal	association 1
+153	Right_VMV1	R	True	False	False	R_VMV1_ROI	visual	paralimbic	sensory 1
+154	Right_VMV3	R	True	False	False	R_VMV3_ROI	visual	unimodal	association 1
+155	Right_PHA2	R	True	False	False	R_PHA2_ROI	default mode	heteromodal	limbic
+156	Right_V4t	R	True	False	False	R_V4t_ROI	visual	unimodal	sensory 1
+157	Right_FST	R	True	False	False	R_FST_ROI	dorsal attention	unimodal	association 1
+158	Right_V3CD	R	True	False	False	R_V3CD_ROI	visual	unimodal	sensory 1
+159	Right_LO3	R	True	False	False	R_LO3_ROI	visual	unimodal	sensory 1
+160	Right_VMV2	R	True	False	False	R_VMV2_ROI	visual	paralimbic	sensory 1
+161	Right_31pd	R	True	False	False	R_31pd_ROI	default mode	heteromodal	association 1
+162	Right_31a	R	True	False	False	R_31a_ROI	default mode	heteromodal	association 1
+163	Right_VVC	R	True	False	False	R_VVC_ROI	visual	unimodal	association 1
+164	Right_25	R	True	False	False	R_25_ROI	limbic	idiotypic	sensory 1
+165	Right_s32	R	True	False	False	R_s32_ROI	limbic	idiotypic	sensory 1
+166	Right_pOFC	R	True	False	False	R_pOFC_ROI	limbic	idiotypic	sensory 1
+167	Right_PoI1	R	True	False	False	R_PoI1_ROI	ventral attention	idiotypic	insula
+168	Right_Ig	R	True	False	False	R_Ig_ROI	somatosensory	idiotypic	insula
+169	Right_FOP5	R	True	False	False	R_FOP5_ROI	ventral attention	heteromodal	association 1
+170	Right_p10p	R	True	False	False	R_p10p_ROI	default mode	heteromodal	association 2
+171	Right_p47r	R	True	False	False	R_p47r_ROI	frontoparietal	heteromodal	sensory 1
+172	Right_TGv	R	True	False	False	R_TGv_ROI	limbic	idiotypic	association 1
+173	Right_MBelt	R	True	False	False	R_MBelt_ROI	somatosensory	unimodal	sensory 2
+174	Right_LBelt	R	True	False	False	R_LBelt_ROI	somatosensory	paralimbic	association 2
+175	Right_A4	R	True	False	False	R_A4_ROI	somatosensory	unimodal	association 2
+176	Right_STSva	R	True	False	False	R_STSva_ROI	default mode	unimodal	association 1
+177	Right_TE1m	R	True	False	False	R_TE1m_ROI	default mode	heteromodal	association 1
+178	Right_PI	R	True	False	False	R_PI_ROI	ventral attention	unimodal	association 2
+179	Right_a32pr	R	True	False	False	R_a32pr_ROI	frontoparietal	heteromodal	association 1
+180	Right_p24	R	True	False	False	R_p24_ROI	default mode	idiotypic	limbic
+181	Left_V1	L	True	False	False	L_V1_ROI	visual	paralimbic	sensory 2
+182	Left_MST	L	True	False	False	L_MST_ROI	visual	unimodal	sensory 1
+183	Left_V6	L	True	False	False	L_V6_ROI	visual	unimodal	sensory 1
+184	Left_V2	L	True	False	False	L_V2_ROI	visual	paralimbic	sensory 1
+185	Left_V3	L	True	False	False	L_V3_ROI	visual	paralimbic	sensory 1
+186	Left_V4	L	True	False	False	L_V4_ROI	visual	unimodal	sensory 1
+187	Left_V8	L	True	False	False	L_V8_ROI	visual	unimodal	association 1
+188	Left_4	L	True	False	False	L_4_ROI	somatosensory	paralimbic	motor
+189	Left_3b	L	True	False	False	L_3b_ROI	somatosensory	paralimbic	sensory 2
+190	Left_FEF	L	True	False	False	L_FEF_ROI	dorsal attention	paralimbic	motor
+191	Left_PEF	L	True	False	False	L_PEF_ROI	dorsal attention	paralimbic	motor
+192	Left_55b	L	True	False	False	L_55b_ROI	ventral attention	paralimbic	motor
+193	Left_V3A	L	True	False	False	L_V3A_ROI	visual	unimodal	association 1
+194	Left_RSC	L	True	False	False	L_RSC_ROI	default mode	idiotypic	limbic
+195	Left_POS2	L	True	False	False	L_POS2_ROI	frontoparietal	heteromodal	association 1
+196	Left_V7	L	True	False	False	L_V7_ROI	visual	unimodal	association 1
+197	Left_IPS1	L	True	False	False	L_IPS1_ROI	dorsal attention	heteromodal	association 1
+198	Left_FFC	L	True	False	False	L_FFC_ROI	visual	unimodal	association 1
+199	Left_V3B	L	True	False	False	L_V3B_ROI	visual	unimodal	association 1
+200	Left_LO1	L	True	False	False	L_LO1_ROI	visual	unimodal	sensory 1
+201	Left_LO2	L	True	False	False	L_LO2_ROI	visual	unimodal	sensory 1
+202	Left_PIT	L	True	False	False	L_PIT_ROI	visual	unimodal	sensory 1
+203	Left_MT	L	True	False	False	L_MT_ROI	visual	unimodal	sensory 1
+204	Left_A1	L	True	False	False	L_A1_ROI	somatosensory	unimodal	sensory 2
+205	Left_PSL	L	True	False	False	L_PSL_ROI	ventral attention	unimodal	association 2
+206	Left_SFL	L	True	False	False	L_SFL_ROI	default mode	unimodal	association 1
+207	Left_PCV	L	True	False	False	L_PCV_ROI	dorsal attention	heteromodal	association 1
+208	Left_STV	L	True	False	False	L_STV_ROI	ventral attention	unimodal	association 2
+209	Left_7Pm	L	True	False	False	L_7Pm_ROI	frontoparietal	heteromodal	association 1
+210	Left_7m	L	True	False	False	L_7m_ROI	default mode	heteromodal	association 1
+211	Left_POS1	L	True	False	False	L_POS1_ROI	default mode	heteromodal	association 1
+212	Left_23d	L	True	False	False	L_23d_ROI	default mode	idiotypic	limbic
+213	Left_v23ab	L	True	False	False	L_v23ab_ROI	default mode	idiotypic	association 1
+214	Left_d23ab	L	True	False	False	L_d23ab_ROI	default mode	idiotypic	limbic
+215	Left_31pv	L	True	False	False	L_31pv_ROI	default mode	idiotypic	association 1
+216	Left_5m	L	True	False	False	L_5m_ROI	somatosensory	paralimbic	motor
+217	Left_5mv	L	True	False	False	L_5mv_ROI	ventral attention	unimodal	motor
+218	Left_23c	L	True	False	False	L_23c_ROI	ventral attention	unimodal	association 1
+219	Left_5L	L	True	False	False	L_5L_ROI	somatosensory	unimodal	motor
+220	Left_24dd	L	True	False	False	L_24dd_ROI	somatosensory	paralimbic	motor
+221	Left_24dv	L	True	False	False	L_24dv_ROI	somatosensory	unimodal	association 1
+222	Left_7AL	L	True	False	False	L_7AL_ROI	dorsal attention	heteromodal	association 1
+223	Left_SCEF	L	True	False	False	L_SCEF_ROI	ventral attention	unimodal	association 1
+224	Left_6ma	L	True	False	False	L_6ma_ROI	ventral attention	unimodal	association 1
+225	Left_7Am	L	True	False	False	L_7Am_ROI	dorsal attention	heteromodal	association 1
+226	Left_7PL	L	True	False	False	L_7PL_ROI	dorsal attention	heteromodal	association 1
+227	Left_7PC	L	True	False	False	L_7PC_ROI	dorsal attention	heteromodal	association 1
+228	Left_LIPv	L	True	False	False	L_LIPv_ROI	dorsal attention	heteromodal	association 1
+229	Left_VIP	L	True	False	False	L_VIP_ROI	dorsal attention	heteromodal	association 1
+230	Left_MIP	L	True	False	False	L_MIP_ROI	dorsal attention	heteromodal	association 1
+231	Left_1	L	True	False	False	L_1_ROI	somatosensory	paralimbic	sensory 2
+232	Left_2	L	True	False	False	L_2_ROI	somatosensory	unimodal	sensory 2
+233	Left_3a	L	True	False	False	L_3a_ROI	somatosensory	paralimbic	sensory 2
+234	Left_6d	L	True	False	False	L_6d_ROI	somatosensory	paralimbic	motor
+235	Left_6mp	L	True	False	False	L_6mp_ROI	somatosensory	paralimbic	motor
+236	Left_6v	L	True	False	False	L_6v_ROI	somatosensory	paralimbic	motor
+237	Left_p24pr	L	True	False	False	L_p24pr_ROI	ventral attention	idiotypic	limbic
+238	Left_33pr	L	True	False	False	L_33pr_ROI	ventral attention	idiotypic	limbic
+239	Left_a24pr	L	True	False	False	L_a24pr_ROI	ventral attention	idiotypic	limbic
+240	Left_p32pr	L	True	False	False	L_p32pr_ROI	ventral attention	unimodal	association 1
+241	Left_a24	L	True	False	False	L_a24_ROI	default mode	idiotypic	limbic
+242	Left_d32	L	True	False	False	L_d32_ROI	default mode	heteromodal	association 1
+243	Left_8BM	L	True	False	False	L_8BM_ROI	frontoparietal	heteromodal	association 1
+244	Left_p32	L	True	False	False	L_p32_ROI	default mode	heteromodal	sensory 1
+245	Left_10r	L	True	False	False	L_10r_ROI	default mode	heteromodal	sensory 1
+246	Left_47m	L	True	False	False	L_47m_ROI	default mode	idiotypic	sensory 1
+247	Left_8Av	L	True	False	False	L_8Av_ROI	frontoparietal	unimodal	association 1
+248	Left_8Ad	L	True	False	False	L_8Ad_ROI	default mode	heteromodal	association 1
+249	Left_9m	L	True	False	False	L_9m_ROI	default mode	heteromodal	association 1
+250	Left_8BL	L	True	False	False	L_8BL_ROI	default mode	heteromodal	association 1
+251	Left_9p	L	True	False	False	L_9p_ROI	default mode	heteromodal	association 1
+252	Left_10d	L	True	False	False	L_10d_ROI	default mode	heteromodal	association 1
+253	Left_8C	L	True	False	False	L_8C_ROI	frontoparietal	heteromodal	association 1
+254	Left_44	L	True	False	False	L_44_ROI	frontoparietal	heteromodal	association 1
+255	Left_45	L	True	False	False	L_45_ROI	default mode	heteromodal	association 1
+256	Left_47l	L	True	False	False	L_47l_ROI	default mode	heteromodal	sensory 1
+257	Left_a47r	L	True	False	False	L_a47r_ROI	frontoparietal	heteromodal	sensory 1
+258	Left_6r	L	True	False	False	L_6r_ROI	ventral attention	paralimbic	motor
+259	Left_IFJa	L	True	False	False	L_IFJa_ROI	frontoparietal	heteromodal	association 1
+260	Left_IFJp	L	True	False	False	L_IFJp_ROI	dorsal attention	unimodal	association 1
+261	Left_IFSp	L	True	False	False	L_IFSp_ROI	frontoparietal	heteromodal	association 1
+262	Left_IFSa	L	True	False	False	L_IFSa_ROI	frontoparietal	heteromodal	association 1
+263	Left_p9-46v	L	True	False	False	L_p9-46v_ROI	frontoparietal	heteromodal	association 2
+264	Left_46	L	True	False	False	L_46_ROI	frontoparietal	heteromodal	association 2
+265	Left_a9-46v	L	True	False	False	L_a9-46v_ROI	frontoparietal	heteromodal	association 2
+266	Left_9-46d	L	True	False	False	L_9-46d_ROI	frontoparietal	heteromodal	association 2
+267	Left_9a	L	True	False	False	L_9a_ROI	default mode	heteromodal	association 2
+268	Left_10v	L	True	False	False	L_10v_ROI	limbic	heteromodal	sensory 1
+269	Left_a10p	L	True	False	False	L_a10p_ROI	frontoparietal	heteromodal	association 2
+270	Left_10pp	L	True	False	False	L_10pp_ROI	limbic	heteromodal	association 2
+271	Left_11l	L	True	False	False	L_11l_ROI	frontoparietal	heteromodal	sensory 1
+272	Left_13l	L	True	False	False	L_13l_ROI	limbic	idiotypic	sensory 1
+273	Left_OFC	L	True	False	False	L_OFC_ROI	limbic	idiotypic	sensory 1
+274	Left_47s	L	True	False	False	L_47s_ROI	default mode	idiotypic	sensory 1
+275	Left_LIPd	L	True	False	False	L_LIPd_ROI	dorsal attention	heteromodal	association 1
+276	Left_6a	L	True	False	False	L_6a_ROI	dorsal attention	paralimbic	motor
+277	Left_i6-8	L	True	False	False	L_i6-8_ROI	frontoparietal	unimodal	association 1
+278	Left_s6-8	L	True	False	False	L_s6-8_ROI	frontoparietal	unimodal	association 1
+279	Left_43	L	True	False	False	L_43_ROI	somatosensory	unimodal	motor
+280	Left_OP4	L	True	False	False	L_OP4_ROI	somatosensory	unimodal	sensory 2
+281	Left_OP1	L	True	False	False	L_OP1_ROI	somatosensory	heteromodal	association 2
+282	Left_OP2-3	L	True	False	False	L_OP2-3_ROI	somatosensory	heteromodal	insula
+283	Left_52	L	True	False	False	L_52_ROI	somatosensory	idiotypic	insula
+284	Left_RI	L	True	False	False	L_RI_ROI	somatosensory	unimodal	association 2
+285	Left_PFcm	L	True	False	False	L_PFcm_ROI	somatosensory	unimodal	association 2
+286	Left_PoI2	L	True	False	False	L_PoI2_ROI	ventral attention	idiotypic	insula
+287	Left_TA2	L	True	False	False	L_TA2_ROI	somatosensory	unimodal	association 2
+288	Left_FOP4	L	True	False	False	L_FOP4_ROI	ventral attention	heteromodal	association 1
+289	Left_MI	L	True	False	False	L_MI_ROI	ventral attention	idiotypic	insula
+290	Left_Pir	L	True	False	False	L_Pir_ROI	ventral attention	idiotypic	insula
+291	Left_AVI	L	True	False	False	L_AVI_ROI	frontoparietal	idiotypic	sensory 1
+292	Left_AAIC	L	True	False	False	L_AAIC_ROI	ventral attention	idiotypic	insula
+293	Left_FOP1	L	True	False	False	L_FOP1_ROI	ventral attention	unimodal	motor
+294	Left_FOP3	L	True	False	False	L_FOP3_ROI	ventral attention	idiotypic	insula
+295	Left_FOP2	L	True	False	False	L_FOP2_ROI	somatosensory	unimodal	motor
+296	Left_PFt	L	True	False	False	L_PFt_ROI	dorsal attention	heteromodal	association 2
+297	Left_AIP	L	True	False	False	L_AIP_ROI	dorsal attention	heteromodal	association 1
+298	Left_EC	L	True	False	False	L_EC_ROI	limbic	idiotypic	limbic
+299	Left_PreS	L	True	False	False	L_PreS_ROI	visual	idiotypic	limbic
+300	Left_H	L	True	False	False	L_H_ROI	limbic	idiotypic	limbic
+301	Left_ProS	L	True	False	False	L_ProS_ROI	visual	paralimbic	sensory 1
+302	Left_PeEc	L	True	False	False	L_PeEc_ROI	limbic	idiotypic	limbic
+303	Left_STGa	L	True	False	False	L_STGa_ROI	default mode	idiotypic	association 2
+304	Left_PBelt	L	True	False	False	L_PBelt_ROI	somatosensory	unimodal	association 2
+305	Left_A5	L	True	False	False	L_A5_ROI	somatosensory	unimodal	association 2
+306	Left_PHA1	L	True	False	False	L_PHA1_ROI	visual	idiotypic	limbic
+307	Left_PHA3	L	True	False	False	L_PHA3_ROI	visual	heteromodal	association 1
+308	Left_STSda	L	True	False	False	L_STSda_ROI	default mode	unimodal	association 2
+309	Left_STSdp	L	True	False	False	L_STSdp_ROI	default mode	unimodal	association 2
+310	Left_STSvp	L	True	False	False	L_STSvp_ROI	default mode	heteromodal	association 1
+311	Left_TGd	L	True	False	False	L_TGd_ROI	limbic	idiotypic	association 1
+312	Left_TE1a	L	True	False	False	L_TE1a_ROI	default mode	heteromodal	association 1
+313	Left_TE1p	L	True	False	False	L_TE1p_ROI	frontoparietal	heteromodal	association 1
+314	Left_TE2a	L	True	False	False	L_TE2a_ROI	limbic	unimodal	association 1
+315	Left_TF	L	True	False	False	L_TF_ROI	limbic	unimodal	association 1
+316	Left_TE2p	L	True	False	False	L_TE2p_ROI	dorsal attention	unimodal	association 1
+317	Left_PHT	L	True	False	False	L_PHT_ROI	dorsal attention	heteromodal	association 1
+318	Left_PH	L	True	False	False	L_PH_ROI	dorsal attention	unimodal	association 1
+319	Left_TPOJ1	L	True	False	False	L_TPOJ1_ROI	ventral attention	unimodal	association 2
+320	Left_TPOJ2	L	True	False	False	L_TPOJ2_ROI	dorsal attention	heteromodal	association 2
+321	Left_TPOJ3	L	True	False	False	L_TPOJ3_ROI	dorsal attention	unimodal	association 2
+322	Left_DVT	L	True	False	False	L_DVT_ROI	visual	unimodal	association 1
+323	Left_PGp	L	True	False	False	L_PGp_ROI	dorsal attention	unimodal	association 2
+324	Left_IP2	L	True	False	False	L_IP2_ROI	frontoparietal	heteromodal	association 2
+325	Left_IP1	L	True	False	False	L_IP1_ROI	frontoparietal	heteromodal	association 2
+326	Left_IP0	L	True	False	False	L_IP0_ROI	dorsal attention	unimodal	association 2
+327	Left_PFop	L	True	False	False	L_PFop_ROI	ventral attention	unimodal	association 2
+328	Left_PF	L	True	False	False	L_PF_ROI	ventral attention	heteromodal	association 2
+329	Left_PFm	L	True	False	False	L_PFm_ROI	frontoparietal	heteromodal	association 2
+330	Left_PGi	L	True	False	False	L_PGi_ROI	default mode	heteromodal	association 2
+331	Left_PGs	L	True	False	False	L_PGs_ROI	default mode	heteromodal	association 2
+332	Left_V6A	L	True	False	False	L_V6A_ROI	visual	unimodal	association 1
+333	Left_VMV1	L	True	False	False	L_VMV1_ROI	visual	paralimbic	sensory 1
+334	Left_VMV3	L	True	False	False	L_VMV3_ROI	visual	unimodal	association 1
+335	Left_PHA2	L	True	False	False	L_PHA2_ROI	visual	heteromodal	limbic
+336	Left_V4t	L	True	False	False	L_V4t_ROI	visual	unimodal	sensory 1
+337	Left_FST	L	True	False	False	L_FST_ROI	dorsal attention	unimodal	association 1
+338	Left_V3CD	L	True	False	False	L_V3CD_ROI	visual	unimodal	sensory 1
+339	Left_LO3	L	True	False	False	L_LO3_ROI	visual	unimodal	sensory 1
+340	Left_VMV2	L	True	False	False	L_VMV2_ROI	visual	paralimbic	sensory 1
+341	Left_31pd	L	True	False	False	L_31pd_ROI	default mode	heteromodal	association 1
+342	Left_31a	L	True	False	False	L_31a_ROI	frontoparietal	heteromodal	association 1
+343	Left_VVC	L	True	False	False	L_VVC_ROI	visual	unimodal	association 1
+344	Left_25	L	True	False	False	L_25_ROI	limbic	idiotypic	sensory 1
+345	Left_s32	L	True	False	False	L_s32_ROI	default mode	idiotypic	sensory 1
+346	Left_pOFC	L	True	False	False	L_pOFC_ROI	limbic	idiotypic	sensory 1
+347	Left_PoI1	L	True	False	False	L_PoI1_ROI	ventral attention	idiotypic	insula
+348	Left_Ig	L	True	False	False	L_Ig_ROI	somatosensory	idiotypic	insula
+349	Left_FOP5	L	True	False	False	L_FOP5_ROI	ventral attention	idiotypic	association 1
+350	Left_p10p	L	True	False	False	L_p10p_ROI	frontoparietal	heteromodal	association 2
+351	Left_p47r	L	True	False	False	L_p47r_ROI	frontoparietal	heteromodal	sensory 1
+352	Left_TGv	L	True	False	False	L_TGv_ROI	limbic	idiotypic	association 1
+353	Left_MBelt	L	True	False	False	L_MBelt_ROI	somatosensory	unimodal	sensory 2
+354	Left_LBelt	L	True	False	False	L_LBelt_ROI	somatosensory	paralimbic	association 2
+355	Left_A4	L	True	False	False	L_A4_ROI	somatosensory	unimodal	association 2
+356	Left_STSva	L	True	False	False	L_STSva_ROI	default mode	unimodal	association 1
+357	Left_TE1m	L	True	False	False	L_TE1m_ROI	default mode	heteromodal	association 1
+358	Left_PI	L	True	False	False	L_PI_ROI	ventral attention	idiotypic	association 2
+359	Left_a32pr	L	True	False	False	L_a32pr_ROI	frontoparietal	heteromodal	association 1
+360	Left_p24	L	True	False	False	L_p24_ROI	default mode	idiotypic	limbic
+361	aHIP-rh	R	False	True	False	n/a	n/a	n/a	n/a
+362	pHIP-rh	R	False	True	False	n/a	n/a	n/a	n/a
+363	lAMY-rh	R	False	True	False	n/a	n/a	n/a	n/a
+364	mAMY-rh	R	False	True	False	n/a	n/a	n/a	n/a
+365	THA-DP-rh	R	False	True	False	n/a	n/a	n/a	n/a
+366	THA-VP-rh	R	False	True	False	n/a	n/a	n/a	n/a
+367	THA-VA-rh	R	False	True	False	n/a	n/a	n/a	n/a
+368	THA-DA-rh	R	False	True	False	n/a	n/a	n/a	n/a
+369	NAc-shell-rh	R	False	True	False	n/a	n/a	n/a	n/a
+370	NAc-core-rh	R	False	True	False	n/a	n/a	n/a	n/a
+371	pGP-rh	R	False	True	False	n/a	n/a	n/a	n/a
+372	aGP-rh	R	False	True	False	n/a	n/a	n/a	n/a
+373	aPUT-rh	R	False	True	False	n/a	n/a	n/a	n/a
+374	pPUT-rh	R	False	True	False	n/a	n/a	n/a	n/a
+375	aCAU-rh	R	False	True	False	n/a	n/a	n/a	n/a
+376	pCAU-rh	R	False	True	False	n/a	n/a	n/a	n/a
+377	aHIP-lh	L	False	True	False	n/a	n/a	n/a	n/a
+378	pHIP-lh	L	False	True	False	n/a	n/a	n/a	n/a
+379	lAMY-lh	L	False	True	False	n/a	n/a	n/a	n/a
+380	mAMY-lh	L	False	True	False	n/a	n/a	n/a	n/a
+381	THA-DP-lh	L	False	True	False	n/a	n/a	n/a	n/a
+382	THA-VP-lh	L	False	True	False	n/a	n/a	n/a	n/a
+383	THA-VA-lh	L	False	True	False	n/a	n/a	n/a	n/a
+384	THA-DA-lh	L	False	True	False	n/a	n/a	n/a	n/a
+385	NAc-shell-lh	L	False	True	False	n/a	n/a	n/a	n/a
+386	NAc-core-lh	L	False	True	False	n/a	n/a	n/a	n/a
+387	pGP-lh	L	False	True	False	n/a	n/a	n/a	n/a
+388	aGP-lh	L	False	True	False	n/a	n/a	n/a	n/a
+389	aPUT-lh	L	False	True	False	n/a	n/a	n/a	n/a
+390	pPUT-lh	L	False	True	False	n/a	n/a	n/a	n/a
+391	aCAU-lh	L	False	True	False	n/a	n/a	n/a	n/a
+392	pCAU-lh	L	False	True	False	n/a	n/a	n/a	n/a

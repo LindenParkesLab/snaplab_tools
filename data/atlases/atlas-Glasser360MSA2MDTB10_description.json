@@ -1,0 +1,24 @@
+{
+    "Name": "Glasser360MSA2MDTB10",
+    "Description": "Glasser360 + MSA2 + MDTB10: built by code/build_atlases.py. Labels are numbered Glasser360, then MSA2, then MDTB10. Where they overlap, MSA overrides cortex and MDTB10 overrides both.",
+    "License": "Inherits the terms of its source atlases.",
+    "ReferencesAndLinks": [
+        "Glasser, M. F., Coalson, T. S., Robinson, E. C., et al. (2016). A multi-modal parcellation of human cerebral cortex. Nature, 536, 171-178. https://doi.org/10.1038/nature18933",
+        "https://github.com/PennLINC/xcp_d",
+        "Tian, Y., Margulies, D. S., Breakspear, M., & Zalesky, A. (2020). Topographic organization of the human subcortex unveiled with functional connectivity gradients. Nature Neuroscience, 23, 1421-1432. https://doi.org/10.1038/s41593-020-00711-6",
+        "https://github.com/yetianmed/subcortex",
+        "King, M., Hernandez-Castillo, C. R., Poldrack, R. A., Ivry, R. B., & Diedrichsen, J. (2019). Functional boundaries in the human cerebellum revealed by a multi-domain task battery. Nature Neuroscience, 22, 1371-1378. https://doi.org/10.1038/s41593-019-0436-x",
+        "https://github.com/DiedrichsenLab/cerebellar_atlases"
+    ],
+    "SourceAtlases": {
+        "Glasser360": {
+            "License": "HCP Data Use Terms apply to the original release; see THIRD_PARTY_NOTICES.md"
+        },
+        "MSA2": {
+            "License": "See https://github.com/yetianmed/subcortex"
+        },
+        "MDTB10": {
+            "License": "See https://github.com/DiedrichsenLab/cerebellar_atlases"
+        }
+    }
+}

@@ -1,0 +1,9 @@
+{
+    "Name": "Glasser360",
+    "Description": "HCP-MMP1.0 cortical parcellation (Glasser et al. 2016), 360 parcels, from XCP-D. Named Glasser360 here because XCP-D has a built-in atlas called \"Glasser\" (the same parcellation) and stops when two atlas datasets share a name.",
+    "License": "HCP Data Use Terms apply to the original release; see THIRD_PARTY_NOTICES.md",
+    "ReferencesAndLinks": [
+        "Glasser, M. F., Coalson, T. S., Robinson, E. C., et al. (2016). A multi-modal parcellation of human cerebral cortex. Nature, 536, 171-178. https://doi.org/10.1038/nature18933",
+        "https://github.com/PennLINC/xcp_d"
+    ]
+}

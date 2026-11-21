@@ -1,0 +1,30 @@
+{
+    "Name": "Schaefer10007",
+    "Resolution": "2 mm isotropic",
+    "index": {
+        "Description": "Label value in the image."
+    },
+    "name": {
+        "Description": "Region name."
+    },
+    "hemisphere": {
+        "Description": "Hemisphere the region belongs to, from its name.",
+        "Levels": {
+            "L": "left",
+            "R": "right",
+            "bilateral": "spans both hemispheres"
+        }
+    },
+    "cortex": {
+        "Description": "Region comes from a cortical atlas (Schaefer or Glasser)."
+    },
+    "subcortex": {
+        "Description": "Region comes from the Melbourne Subcortex Atlas (MSA)."
+    },
+    "cerebellum": {
+        "Description": "Region comes from the MDTB10 cerebellar atlas."
+    },
+    "templateflow_name": {
+        "Description": "The parcel's name in TemplateFlow's Schaefer2018 release, which predates CBIG renaming some parcels. Same parcel, same index; `name` holds the current CBIG name."
+    }
+}
