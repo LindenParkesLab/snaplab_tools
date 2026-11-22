@@ -80,6 +80,20 @@ parcellation of human cerebral cortex. *Nature*, 536, 171–178.
 
 ## In `data/atlases/` (not installed with the package)
 
+### Yan 2023 homotopic parcellation: `Yan<N>7`
+
+`data/atlases/sourcedata/Yan2023/` and the `Yan<N>7` atlases made from it: from the CBIG
+repository, **MIT licence** (Copyright (c) 2016 Computational Brain Imaging Group (CBIG); see
+<https://github.com/ThomasYeoLab/CBIG/blob/master/LICENSE.md>). The MNI152NLin2009cAsym
+versions are resampled here with TemplateFlow's MNI152NLin6Asym -> MNI152NLin2009cAsym
+transform (downloaded when needed, not redistributed).
+
+Yan, X., Kong, R., Xue, A., Yang, Q., Orban, C., An, L., Holmes, A.J., Qian, X., Chen, J., Zuo,
+X.-N., Zhou, J.H., Fortier, M.V., Tan, A.P., Gluckman, P., Chong, Y.S., Meaney, M.J., Bzdok, D.,
+Eickhoff, S.B., & Yeo, B.T.T. (2023). Homotopic local-global parcellation of the human cerebral
+cortex from resting-state functional connectivity. *NeuroImage*, 273, 120010.
+<https://doi.org/10.1016/j.neuroimage.2023.120010>
+
 ### Glasser (HCP-MMP1.0): `Glasser360`
 
 Taken from [PennLINC/xcp_d](https://github.com/PennLINC/xcp_d), which redistributes the
@@ -112,7 +126,7 @@ Neuroscience*, 22, 1371–1378. <https://doi.org/10.1038/s41593-019-0436-x>
 
 ### Combined atlases
 
-`Glasser360MSA*`, `Schaefer*MSA*` and `*MDTB10` are combinations produced in this repository from
+`Glasser360MSA*`, `Schaefer*MSA*`, `Yan*MSA*` and `*MDTB10` are combinations produced in this repository from
 the above (by `data/atlases/code/build_atlases.py`). They inherit the terms of their constituent
 atlases.
 

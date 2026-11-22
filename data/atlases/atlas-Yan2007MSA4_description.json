@@ -1,0 +1,19 @@
+{
+    "Name": "Yan2007MSA4",
+    "Description": "Yan2007 + MSA4: built by code/build_atlases.py. Labels are numbered Yan2007, then MSA4. Where they overlap, MSA overrides cortex.",
+    "License": "Inherits the terms of its source atlases.",
+    "ReferencesAndLinks": [
+        "Yan, X., Kong, R., Xue, A., Yang, Q., Orban, C., An, L., Holmes, A. J., Qian, X., Chen, J., Zuo, X.-N., Zhou, J. H., Fortier, M. V., Tan, A. P., Gluckman, P., Chong, Y. S., Meaney, M. J., Bzdok, D., Eickhoff, S. B., & Yeo, B. T. T. (2023). Homotopic local-global parcellation of the human cerebral cortex from resting-state functional connectivity. NeuroImage, 273, 120010. https://doi.org/10.1016/j.neuroimage.2023.120010",
+        "https://github.com/ThomasYeoLab/CBIG/tree/master/stable_projects/brain_parcellation/Yan2023_homotopic",
+        "Tian, Y., Margulies, D. S., Breakspear, M., & Zalesky, A. (2020). Topographic organization of the human subcortex unveiled with functional connectivity gradients. Nature Neuroscience, 23, 1421-1432. https://doi.org/10.1038/s41593-020-00711-6",
+        "https://github.com/yetianmed/subcortex"
+    ],
+    "SourceAtlases": {
+        "Yan2007": {
+            "License": "MIT (https://github.com/ThomasYeoLab/CBIG/blob/master/LICENSE.md)"
+        },
+        "MSA4": {
+            "License": "See https://github.com/yetianmed/subcortex"
+        }
+    }
+}

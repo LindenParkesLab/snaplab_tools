@@ -1,4 +1,4 @@
-index	name	hemisphere	cortex	subcortex	cerebellum	cifti_label	community_yeo	community_mesulam	community_economo	color
+index	name	hemisphere	cortex	subcortex	cerebellum	hcp_label	community_yeo	community_mesulam	community_economo	color
 1	Right_V1	R	True	False	False	R_V1_ROI	visual	paralimbic	sensory 2	n/a
 2	Right_MST	R	True	False	False	R_MST_ROI	dorsal attention	unimodal	sensory 1	n/a
 3	Right_V6	R	True	False	False	R_V6_ROI	visual	unimodal	sensory 1	n/a

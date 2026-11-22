@@ -7,14 +7,16 @@ Run from anywhere; rerunning rewrites the same outputs:
 
 Inputs (not changed by this script):
   - component atlases, volumetric: tpl-MNI152NLin{6,2009c}Asym/tpl-*_atlas-{Schaefer<N>7,
-    Glasser360,MSA<S>,MDTB10}_res-0{1,2}_dseg.nii.gz, and their TSVs (index, name, ...)
-  - cortical surface labels: sourcedata/Schaefer2018/*.dlabel.nii (CBIG, 32k fsLR) and
+    Yan<N>7,Glasser360,MSA<S>,MDTB10}_res-0{1,2}_dseg.nii.gz, and their TSVs (index, name, ...).
+    The Yan<N>7 volumes and TSVs are made by code/import_yan2023.py.
+  - cortical surface labels: sourcedata/Schaefer2018/*.dlabel.nii (CBIG, 32k fsLR),
+    sourcedata/Yan2023/HCP/fsLR32k/yeo7/*.dlabel.nii (CBIG, 32k fsLR) and
     sourcedata/xcpd/tpl-fsLR_atlas-Glasser_den-32k_dseg.dlabel.nii
   - the HCP 91k grayordinate definition: sourcedata/hcp/91282_Greyordinates.dscalar.nii
 
 Outputs:
-  - combined volumetric atlases: Schaefer<N>7MSA<S>, Schaefer<N>7MSA<S>MDTB10, Glasser360MSA<S>,
-    Glasser360MSA<S>MDTB10. Labels are numbered cortex first, then MSA, then MDTB10. Where
+  - combined volumetric atlases: <cortex>MSA<S> and <cortex>MSA<S>MDTB10, for cortex =
+    Schaefer<N>7, Yan<N>7 (N = 100, 200, 400, 800) and Glasser360. Labels are numbered cortex first, then MSA, then MDTB10. Where
     components overlap, MSA overrides cortex and MDTB10 overrides both.
   - fsLR atlases for every atlas: cortex-only atlases as den-32k (59412 surface vertices,
     medial wall excluded), atlases with subcortex/cerebellum as den-91k (91282 grayordinates).
@@ -44,7 +46,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 SPACES = ('MNI152NLin6Asym', 'MNI152NLin2009cAsym')
 RESOLUTIONS = (1, 2)
-SCHAEFER_COMBO_SCALES = (100, 200, 400, 800)
+COMBO_SCALES = (100, 200, 400, 800)    # Schaefer and Yan scales used in combinations
 MSA_SCALES = (1, 2, 3, 4)
 FLAGS = ('cortex', 'subcortex', 'cerebellum')
 
@@ -54,6 +56,12 @@ REFS = {
                  'cortex from intrinsic functional connectivity MRI. Cerebral Cortex, 28(9), 3095-3114. '
                  'https://doi.org/10.1093/cercor/bhx179',
                  'https://github.com/ThomasYeoLab/CBIG/tree/master/stable_projects/brain_parcellation/Schaefer2018_LocalGlobal'],
+    'Yan': ['Yan, X., Kong, R., Xue, A., Yang, Q., Orban, C., An, L., Holmes, A. J., Qian, X., Chen, J., '
+            'Zuo, X.-N., Zhou, J. H., Fortier, M. V., Tan, A. P., Gluckman, P., Chong, Y. S., Meaney, M. J., '
+            'Bzdok, D., Eickhoff, S. B., & Yeo, B. T. T. (2023). Homotopic local-global parcellation of the '
+            'human cerebral cortex from resting-state functional connectivity. NeuroImage, 273, 120010. '
+            'https://doi.org/10.1016/j.neuroimage.2023.120010',
+            'https://github.com/ThomasYeoLab/CBIG/tree/master/stable_projects/brain_parcellation/Yan2023_homotopic'],
     'Glasser': ['Glasser, M. F., Coalson, T. S., Robinson, E. C., et al. (2016). A multi-modal '
                 'parcellation of human cerebral cortex. Nature, 536, 171-178. https://doi.org/10.1038/nature18933',
                 'https://github.com/PennLINC/xcp_d'],
@@ -68,6 +76,7 @@ REFS = {
 }
 LICENSES = {
     'Schaefer': 'MIT (https://github.com/ThomasYeoLab/CBIG/blob/master/LICENSE.md)',
+    'Yan': 'MIT (https://github.com/ThomasYeoLab/CBIG/blob/master/LICENSE.md)',
     'Glasser': 'HCP Data Use Terms apply to the original release; see THIRD_PARTY_NOTICES.md',
     'MSA': 'See https://github.com/yetianmed/subcortex',
     'MDTB10': 'See https://github.com/DiedrichsenLab/cerebellar_atlases',
@@ -79,18 +88,33 @@ COLUMN_DOCS = {
     'name': {'Description': 'Region name.'},
     'hemisphere': {'Description': 'Hemisphere the region belongs to, from its name.',
                    'Levels': {'L': 'left', 'R': 'right', 'bilateral': 'spans both hemispheres'}},
-    'cortex': {'Description': 'Region comes from a cortical atlas (Schaefer or Glasser).'},
+    'cortex': {'Description': 'Region comes from a cortical atlas (Schaefer, Yan or Glasser).'},
     'subcortex': {'Description': 'Region comes from the Melbourne Subcortex Atlas (MSA).'},
     'cerebellum': {'Description': 'Region comes from the MDTB10 cerebellar atlas.'},
     'templateflow_name': {'Description': "The parcel's name in TemplateFlow's Schaefer2018 release, which "
                                          'predates CBIG renaming some parcels. Same parcel, same index; '
                                          '`name` holds the current CBIG name.'},
+    'hcp_label': {'Description': "The area's name in the HCP-MMP1.0 release (e.g. R_V1_ROI). Not called "
+                                 '`cifti_label`: XCP-D maps CIFTI parcel names through a column of that name, '
+                                 'and the label tables here use `name`.'},
+    'homotopic_index': {'Description': 'Index of the homotopic parcel in the other hemisphere (Yan 2023: '
+                                       'left parcel i pairs with right parcel i + N/2).'},
+    'yeo17_index': {'Description': "The parcel's index in CBIG's Yeo 17-network version of this parcellation "
+                                   '(same parcels, numbered in a different order).'},
+    'yeo17_name': {'Description': "The parcel's name in CBIG's Yeo 17-network version."},
+    'kong17_index': {'Description': "The parcel's index in CBIG's Kong 2022 17-network version of this "
+                                    'parcellation (same parcels, numbered in a different order).'},
+    'kong17_name': {'Description': "The parcel's name in CBIG's Kong 2022 17-network version."},
 }
+CORTEX_FAMILIES = ('Schaefer', 'Yan', 'Glasser')
+# TSV columns XCP-D interprets: with either one present, it maps the CIFTI parcel names through it
+# instead of `name` (xcp_d/interfaces/connectivity.py, CiftiToTSV).
+XCPD_MAPPING_COLUMNS = ('cifti_label', 'label_7network')
 
 
 # --------------------------------------------------------------------------- helpers
 def family(name):
-    for fam in ('Schaefer', 'Glasser', 'MSA', 'MDTB10'):
+    for fam in ('Schaefer', 'Yan', 'Glasser', 'MSA', 'MDTB10'):
         if name.startswith(fam):
             return fam
     raise ValueError(name)
@@ -163,7 +187,7 @@ def with_flags(df, fam):
     df = df.copy()
     df.insert(2, 'hemisphere', [hemisphere(n) for n in df['name']])
     for i, flag in enumerate(FLAGS):
-        df.insert(3 + i, flag, {'cortex': fam in ('Schaefer', 'Glasser'),
+        df.insert(3 + i, flag, {'cortex': fam in CORTEX_FAMILIES,
                                 'subcortex': fam == 'MSA', 'cerebellum': fam == 'MDTB10'}[flag])
     return df
 
@@ -198,10 +222,13 @@ class Builder:
     def register_components(self):
         for f in sorted((ROOT / 'tpl-MNI152NLin6Asym').glob('*_res-02_dseg.tsv')):
             name = re.search(r'atlas-([^_]+)_', f.name).group(1)
-            if not re.fullmatch(r'Schaefer\d+7|Glasser360|MSA\d|MDTB10', name):
+            if not re.fullmatch(r'Schaefer\d+7|Yan\d+7|Glasser360|MSA\d|MDTB10', name):
                 continue   # a combination: rebuilt below
             fam = family(name)
-            df = with_flags(read_tsv(f), fam)
+            df = with_flags(read_tsv(f), fam).rename(columns={'cifti_label': 'hcp_label'})
+            for space in SPACES:
+                for res in RESOLUTIONS:
+                    self.check_storage(vol_path(space, name, res))
             if fam == 'Schaefer':
                 # `name`: CBIG's current parcel names (also used by AtlasPack and by Tian's
                 # Schaefer+subcortex release). The TemplateFlow volumes came with older names
@@ -215,7 +242,7 @@ class Builder:
     # -- combinations ------------------------------------------------------------
     def combos(self):
         # A combination is named after its components, e.g. Glasser360MSA2MDTB10.
-        cortices = [f'Schaefer{n}7' for n in SCHAEFER_COMBO_SCALES] + ['Glasser360']
+        cortices = [f'{fam}{n}7' for fam in ('Schaefer', 'Yan') for n in COMBO_SCALES] + ['Glasser360']
         for ctx in cortices:
             for s in MSA_SCALES:
                 yield f'{ctx}MSA{s}', [ctx, f'MSA{s}']
@@ -232,6 +259,9 @@ class Builder:
                 offset = int(df['index'].max())
                 dfs.append(df)
             df = pd.concat(dfs, ignore_index=True)
+            for col in df.columns:   # integer columns stay integers (with n/a) after the concat
+                if any(c in d.columns and pd.api.types.is_integer_dtype(d[c]) for d in dfs for c in [col]):
+                    df[col] = df[col].astype('Int64')
             assert df['index'].tolist() == list(range(1, len(df) + 1)), name
             self.atlases[name] = {'fam': 'combo', 'sources': parts, 'tsv': df, 'component': False}
 
@@ -255,20 +285,26 @@ class Builder:
             n = re.fullmatch(r'Schaefer(\d+)7', ctx).group(1)
             src = ROOT / 'sourcedata' / 'Schaefer2018' / f'Schaefer2018_{n}Parcels_7Networks_order.dlabel.nii'
             key_col = 'name'
+        elif ctx.startswith('Yan'):
+            n = re.fullmatch(r'Yan(\d+)7', ctx).group(1)
+            src = ROOT / 'sourcedata' / 'Yan2023' / 'HCP' / 'fsLR32k' / 'yeo7' / f'{n}Parcels_Yeo2011_7Networks.dlabel.nii'
+            key_col = 'name'
         else:
             src = ROOT / 'sourcedata' / 'xcpd' / 'tpl-fsLR_atlas-Glasser_den-32k_dseg.dlabel.nii'
-            key_col = 'cifti_label'
+            key_col = 'hcp_label'
         img = nib.load(src)
         lab_axis, bm = img.header.get_axis(0), img.header.get_axis(1)
         table = lab_axis.label[0]
         data = np.asarray(img.dataobj)[0].astype(int)
         df = self.atlases[ctx]['tsv']
         if key_col == 'name':
-            # Schaefer: the TSV index is the CBIG key (same parcels, checked spatially against
-            # the TemplateFlow volumes), so map by key.
+            # Schaefer, Yan: the TSV index is the CBIG key (same parcels, checked spatially
+            # against the volumes), so map by key.
             key_to_index = {k: k for k in table if k != 0}
             if set(key_to_index) != set(df['index']):
                 self.fail(f'{ctx}: keys in {src.name} differ from the TSV indices')
+            if ctx.startswith('Yan') and {k: v[0] for k, v in table.items() if k} != dict(zip(df['index'], df['name'])):
+                self.fail(f'{ctx}: names in {src.name} differ from the TSV')
         else:
             to_index = dict(zip(df[key_col], df['index']))
             key_to_index = {k: to_index[v[0]] for k, v in table.items() if k != 0}
@@ -294,7 +330,7 @@ class Builder:
         info = self.atlases[name]
         df = info['tsv']
         parts = info['sources']
-        ctx = next((p for p in parts if family(p) in ('Schaefer', 'Glasser')), None)
+        ctx = next((p for p in parts if family(p) in CORTEX_FAMILIES), None)
         has_vol = any(family(p) in ('MSA', 'MDTB10') for p in parts)
         bm = self.grey if has_vol else self.grey[self.grey.surface_mask]
         den = '91k' if has_vol else '32k'
@@ -316,16 +352,60 @@ class Builder:
             sampled = vol[tuple(np.round(ijk).astype(int).T)]
             noncortex = set(df.loc[~df['cortex'], 'index'])
             values[bm.volume_mask] = np.where(np.isin(sampled, list(noncortex)), sampled, 0)
+        # Only labels that have grayordinates go into the fsLR file and its TSV: wb_command
+        # -cifti-parcellate (as XCP-D runs it) drops empty labels, and XCP-D then stops on TSV
+        # entries missing from the CIFTI. Those left out are listed in the JSON sidecar.
+        present = set(np.unique(values)) - {0}
+        df_f = df[df['index'].isin(present)].reset_index(drop=True)
+        info['fslr_tsv'] = df_f
+        info['fslr_dropped'] = df.loc[~df['index'].isin(present), 'name'].tolist()
+        if info['fslr_dropped']:
+            self.report.append(f'{name} fsLR: {len(info["fslr_dropped"])} label(s) have no grayordinates and are '
+                               f'left out of the fsLR file and its TSV: {info["fslr_dropped"]}')
         rgba = colors_for(df, colors)
         table = {0: ('???', (0.0, 0.0, 0.0, 0.0))}
-        table.update({int(i): (n, tuple(rgba[i])) for i, n in zip(df['index'], df['name'])})
+        table.update({int(i): (n, tuple(rgba[i])) for i, n in zip(df_f['index'], df_f['name'])})
         lab_axis = nib.cifti2.LabelAxis([name], [table])
         out = fslr_path(name, den, 'dlabel.nii')
-        nib.save(nib.Cifti2Image(values[None, :].astype(np.float32), header=(lab_axis, bm)), out)
-        self.check_fslr(name, out, df)
+        img = nib.Cifti2Image(values[None, :].astype(np.float32), header=(lab_axis, bm))
+        img.nifti_header.set_intent('ConnDenseLabel', name='ConnDenseLabel')
+        nib.save(img, out)
+        self.check_fslr(name, out, df_f)
         return den
 
     # -- checks ----------------------------------------------------------------------
+    def check_storage(self, path):
+        img = nib.load(path)
+        h = img.header
+        if not (np.issubdtype(h.get_data_dtype(), np.integer) and len(img.shape) == 3
+                and int(h['sform_code']) > 0 and int(h['qform_code']) > 0
+                and np.allclose(h.get_sform(), h.get_qform(), atol=1e-5)
+                and h.get_slope_inter()[0] in (None, 1.0) and h.get_slope_inter()[1] in (None, 0.0)):
+            self.fail(f'{path.name}: not stored as a 3D integer label image with qform = sform')
+
+    def check_combo(self, name, parts):
+        """Recompute a combination by sampling each component at the combination's voxel centres in
+        world coordinates (not through on_grid), so a flipped or shifted component is caught even
+        when its labels have no hemisphere (MDTB10)."""
+        for space in SPACES:
+            for res in RESOLUTIONS:
+                img = nib.load(vol_path(space, name, res))
+                data = np.asarray(img.dataobj).astype(int)
+                world = nib.affines.apply_affine(img.affine, np.indices(data.shape).reshape(3, -1).T)
+                expect = np.zeros(len(world), int)
+                offset = 0
+                for p in parts:
+                    pimg = nib.load(vol_path(space, p, res))
+                    pdat = np.asarray(pimg.dataobj).squeeze().astype(int)
+                    ijk = np.rint(nib.affines.apply_affine(np.linalg.inv(pimg.affine), world)).astype(int)
+                    ok = np.all((ijk >= 0) & (ijk < pdat.shape), axis=1)
+                    lab = np.zeros(len(world), int)
+                    lab[ok] = pdat[tuple(ijk[ok].T)]
+                    expect = np.where(lab > 0, lab + offset, expect)
+                    offset += len(self.atlases[p]['tsv'])
+                if not np.array_equal(expect.reshape(data.shape), data):
+                    self.fail(f'{name} {space} res-0{res}: differs from its components combined in world coordinates')
+
     def check_volume(self, name, space, res):
         img = nib.load(vol_path(space, name, res))
         data = np.asarray(img.dataobj).squeeze().astype(int)
@@ -347,6 +427,8 @@ class Builder:
 
     def check_fslr(self, name, path, df):
         img = nib.load(path)
+        if img.nifti_header.get_intent()[0] != 'ConnDenseLabel':
+            self.fail(f'{name} fsLR: intent is {img.nifti_header.get_intent()[0]!r}, not ConnDenseLabel')
         lab_axis, bm = img.header.get_axis(0), img.header.get_axis(1)
         table = lab_axis.label[0]
         if {k: v[0] for k, v in table.items() if k} != dict(zip(df['index'], df['name'])):
@@ -354,8 +436,15 @@ class Builder:
         data = np.asarray(img.dataobj)[0].astype(int)
         missing = set(df['index']) - set(np.unique(data))
         if missing:
-            names = df.set_index('index').loc[sorted(missing), 'name'].tolist()
-            self.report.append(f'{name} fsLR: {len(missing)} label(s) have no grayordinates: {names}')
+            self.fail(f'{name} fsLR: {len(missing)} label(s) in the TSV have no grayordinates')
+        # What XCP-D does with it: parcel names (labels with grayordinates) must equal the TSV's
+        # names, matched through `name` (no column XCP-D would map through instead).
+        reserved = [c for c in XCPD_MAPPING_COLUMNS if c in df.columns]
+        if reserved:
+            self.fail(f'{name} fsLR TSV: has {reserved}; XCP-D would match parcels through it instead of `name`')
+        parcels = {table[k][0] for k in set(np.unique(data)) - {0}}
+        if parcels != set(df['name']):
+            self.fail(f'{name} fsLR: parcel names differ from the TSV names (XCP-D would stop)')
         hemi_of = dict(zip(df['index'], df['hemisphere']))
         for struct, sl, b in bm.iter_structures():
             vals = data[sl]
@@ -383,6 +472,12 @@ class Builder:
                 n = re.fullmatch(r'Schaefer(\d+)7', name).group(1)
                 desc = (f'Schaefer 2018 cortical parcellation, {n} parcels, 7-network order. Volumes from '
                         'TemplateFlow; fsLR from CBIG (medial wall removed).')
+            elif fam == 'Yan':
+                n = re.fullmatch(r'Yan(\d+)7', name).group(1)
+                desc = (f'Yan 2023 homotopic cortical parcellation, {n} parcels, Yeo 7-network labels '
+                        f'(left parcel i and right parcel i + {int(n) // 2} are homotopic; Yeo 17 and Kong 17 '
+                        'indices and names in extra columns). MNI152NLin6Asym volumes and fsLR from CBIG; '
+                        'MNI152NLin2009cAsym resampled from MNI152NLin6Asym by code/import_yan2023.py.')
             elif fam == 'Glasser':
                 desc = ('HCP-MMP1.0 cortical parcellation (Glasser et al. 2016), 360 parcels, from XCP-D. '
                         'Named Glasser360 here because XCP-D has a built-in atlas called "Glasser" '
@@ -413,11 +508,16 @@ class Builder:
                 write_tsv(df, vol_path(space, name, res, 'tsv'))
                 write_json({'Name': name, 'Resolution': f'{res} mm isotropic', **generated, **cols},
                            vol_path(space, name, res, 'json'))
-        write_tsv(df, fslr_path(name, den, 'tsv'))
+        write_tsv(self.atlases[name]['fslr_tsv'], fslr_path(name, den, 'tsv'))
+        dropped = self.atlases[name]['fslr_dropped']
+        extra = ({'LabelsWithoutGrayordinates': {
+            'Description': 'Labels of this atlas that have no grayordinates in fsLR, so are not in this file '
+                           'or its TSV (indices of the other labels are unchanged).', 'Names': dropped}}
+                 if dropped else {})
         dens = {'32k': '59412 cortical surface vertices (32k fsLR, medial wall excluded). No subcortical data.',
                 '91k': '91282 grayordinates: 59412 cortical surface vertices (32k fsLR) and 31870 subcortical '
                        'and cerebellar voxels (MNI152NLin6Asym, 2 mm).'}
-        write_json({'Name': name, 'Density': {den: dens[den]}, 'GeneratedBy': 'code/build_atlases.py', **cols},
+        write_json({'Name': name, 'Density': {den: dens[den]}, 'GeneratedBy': 'code/build_atlases.py', **cols, **extra},
                    fslr_path(name, den, 'json'))
 
     # -- main ------------------------------------------------------------------------
@@ -428,6 +528,9 @@ class Builder:
         print(f'{sum(a["component"] for a in self.atlases.values())} components, '
               f'{sum(not a["component"] for a in self.atlases.values())} combinations')
         self.build_combo_volumes()
+        for name, parts in self.combos():
+            self.check_combo(name, parts)
+            self.check_storage(vol_path('MNI152NLin6Asym', name, 1))
         expected = set()
         for name in sorted(self.atlases):
             for space in SPACES:

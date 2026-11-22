@@ -1,0 +1,9 @@
+{
+    "Name": "Yan10007",
+    "Description": "Yan 2023 homotopic cortical parcellation, 1000 parcels, Yeo 7-network labels (left parcel i and right parcel i + 500 are homotopic; Yeo 17 and Kong 17 indices and names in extra columns). MNI152NLin6Asym volumes and fsLR from CBIG; MNI152NLin2009cAsym resampled from MNI152NLin6Asym by code/import_yan2023.py.",
+    "License": "MIT (https://github.com/ThomasYeoLab/CBIG/blob/master/LICENSE.md)",
+    "ReferencesAndLinks": [
+        "Yan, X., Kong, R., Xue, A., Yang, Q., Orban, C., An, L., Holmes, A. J., Qian, X., Chen, J., Zuo, X.-N., Zhou, J. H., Fortier, M. V., Tan, A. P., Gluckman, P., Chong, Y. S., Meaney, M. J., Bzdok, D., Eickhoff, S. B., & Yeo, B. T. T. (2023). Homotopic local-global parcellation of the human cerebral cortex from resting-state functional connectivity. NeuroImage, 273, 120010. https://doi.org/10.1016/j.neuroimage.2023.120010",
+        "https://github.com/ThomasYeoLab/CBIG/tree/master/stable_projects/brain_parcellation/Yan2023_homotopic"
+    ]
+}

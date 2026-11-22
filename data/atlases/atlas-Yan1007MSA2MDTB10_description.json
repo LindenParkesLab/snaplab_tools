@@ -1,0 +1,24 @@
+{
+    "Name": "Yan1007MSA2MDTB10",
+    "Description": "Yan1007 + MSA2 + MDTB10: built by code/build_atlases.py. Labels are numbered Yan1007, then MSA2, then MDTB10. Where they overlap, MSA overrides cortex and MDTB10 overrides both.",
+    "License": "Inherits the terms of its source atlases.",
+    "ReferencesAndLinks": [
+        "Yan, X., Kong, R., Xue, A., Yang, Q., Orban, C., An, L., Holmes, A. J., Qian, X., Chen, J., Zuo, X.-N., Zhou, J. H., Fortier, M. V., Tan, A. P., Gluckman, P., Chong, Y. S., Meaney, M. J., Bzdok, D., Eickhoff, S. B., & Yeo, B. T. T. (2023). Homotopic local-global parcellation of the human cerebral cortex from resting-state functional connectivity. NeuroImage, 273, 120010. https://doi.org/10.1016/j.neuroimage.2023.120010",
+        "https://github.com/ThomasYeoLab/CBIG/tree/master/stable_projects/brain_parcellation/Yan2023_homotopic",
+        "Tian, Y., Margulies, D. S., Breakspear, M., & Zalesky, A. (2020). Topographic organization of the human subcortex unveiled with functional connectivity gradients. Nature Neuroscience, 23, 1421-1432. https://doi.org/10.1038/s41593-020-00711-6",
+        "https://github.com/yetianmed/subcortex",
+        "King, M., Hernandez-Castillo, C. R., Poldrack, R. A., Ivry, R. B., & Diedrichsen, J. (2019). Functional boundaries in the human cerebellum revealed by a multi-domain task battery. Nature Neuroscience, 22, 1371-1378. https://doi.org/10.1038/s41593-019-0436-x",
+        "https://github.com/DiedrichsenLab/cerebellar_atlases"
+    ],
+    "SourceAtlases": {
+        "Yan1007": {
+            "License": "MIT (https://github.com/ThomasYeoLab/CBIG/blob/master/LICENSE.md)"
+        },
+        "MSA2": {
+            "License": "See https://github.com/yetianmed/subcortex"
+        },
+        "MDTB10": {
+            "License": "See https://github.com/DiedrichsenLab/cerebellar_atlases"
+        }
+    }
+}

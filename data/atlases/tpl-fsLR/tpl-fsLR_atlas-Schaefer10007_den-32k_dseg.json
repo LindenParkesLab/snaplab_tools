@@ -19,7 +19,7 @@
         }
     },
     "cortex": {
-        "Description": "Region comes from a cortical atlas (Schaefer or Glasser)."
+        "Description": "Region comes from a cortical atlas (Schaefer, Yan or Glasser)."
     },
     "subcortex": {
         "Description": "Region comes from the Melbourne Subcortex Atlas (MSA)."
@@ -29,5 +29,12 @@
     },
     "templateflow_name": {
         "Description": "The parcel's name in TemplateFlow's Schaefer2018 release, which predates CBIG renaming some parcels. Same parcel, same index; `name` holds the current CBIG name."
+    },
+    "LabelsWithoutGrayordinates": {
+        "Description": "Labels of this atlas that have no grayordinates in fsLR, so are not in this file or its TSV (indices of the other labels are unchanged).",
+        "Names": [
+            "7Networks_RH_Vis_33",
+            "7Networks_RH_Cont_Cing_1"
+        ]
     }
 }

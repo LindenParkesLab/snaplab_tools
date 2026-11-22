@@ -17,7 +17,7 @@
         }
     },
     "cortex": {
-        "Description": "Region comes from a cortical atlas (Schaefer or Glasser)."
+        "Description": "Region comes from a cortical atlas (Schaefer, Yan or Glasser)."
     },
     "subcortex": {
         "Description": "Region comes from the Melbourne Subcortex Atlas (MSA)."

@@ -531,7 +531,6 @@ index	name	hemisphere	cortex	subcortex	cerebellum	templateflow_name
 530	7Networks_RH_Vis_30	R	True	False	False	7Networks_RH_Vis_30
 531	7Networks_RH_Vis_31	R	True	False	False	7Networks_RH_Vis_31
 532	7Networks_RH_Vis_32	R	True	False	False	7Networks_RH_Vis_32
-533	7Networks_RH_Vis_33	R	True	False	False	7Networks_RH_Vis_33
 534	7Networks_RH_Vis_34	R	True	False	False	7Networks_RH_Vis_34
 535	7Networks_RH_Vis_35	R	True	False	False	7Networks_RH_Vis_35
 536	7Networks_RH_Vis_36	R	True	False	False	7Networks_RH_Vis_36
@@ -901,7 +900,6 @@ index	name	hemisphere	cortex	subcortex	cerebellum	templateflow_name
 900	7Networks_RH_Cont_pCun_1	R	True	False	False	7Networks_RH_Cont_pCun_1
 901	7Networks_RH_Cont_pCun_3	R	True	False	False	7Networks_RH_Cont_pCun_2
 902	7Networks_RH_Cont_pCun_5	R	True	False	False	7Networks_RH_Cont_pCun_3
-903	7Networks_RH_Cont_Cing_1	R	True	False	False	7Networks_RH_Cont_Cing_1
 904	7Networks_RH_Cont_Cing_2	R	True	False	False	7Networks_RH_Cont_Cing_2
 905	7Networks_RH_Cont_Cing_3	R	True	False	False	7Networks_RH_Cont_Cing_3
 906	7Networks_RH_Cont_Cing_4	R	True	False	False	7Networks_RH_Cont_Cing_4

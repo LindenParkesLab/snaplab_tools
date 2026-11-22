@@ -1,0 +1,43 @@
+{
+    "Name": "Yan8007MSA1",
+    "Resolution": "1 mm isotropic",
+    "GeneratedBy": "code/build_atlases.py",
+    "index": {
+        "Description": "Label value in the image."
+    },
+    "name": {
+        "Description": "Region name."
+    },
+    "hemisphere": {
+        "Description": "Hemisphere the region belongs to, from its name.",
+        "Levels": {
+            "L": "left",
+            "R": "right",
+            "bilateral": "spans both hemispheres"
+        }
+    },
+    "cortex": {
+        "Description": "Region comes from a cortical atlas (Schaefer, Yan or Glasser)."
+    },
+    "subcortex": {
+        "Description": "Region comes from the Melbourne Subcortex Atlas (MSA)."
+    },
+    "cerebellum": {
+        "Description": "Region comes from the MDTB10 cerebellar atlas."
+    },
+    "homotopic_index": {
+        "Description": "Index of the homotopic parcel in the other hemisphere (Yan 2023: left parcel i pairs with right parcel i + N/2)."
+    },
+    "yeo17_index": {
+        "Description": "The parcel's index in CBIG's Yeo 17-network version of this parcellation (same parcels, numbered in a different order)."
+    },
+    "yeo17_name": {
+        "Description": "The parcel's name in CBIG's Yeo 17-network version."
+    },
+    "kong17_index": {
+        "Description": "The parcel's index in CBIG's Kong 2022 17-network version of this parcellation (same parcels, numbered in a different order)."
+    },
+    "kong17_name": {
+        "Description": "The parcel's name in CBIG's Kong 2022 17-network version."
+    }
+}

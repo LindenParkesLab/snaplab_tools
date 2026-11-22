@@ -17,12 +17,15 @@
         }
     },
     "cortex": {
-        "Description": "Region comes from a cortical atlas (Schaefer or Glasser)."
+        "Description": "Region comes from a cortical atlas (Schaefer, Yan or Glasser)."
     },
     "subcortex": {
         "Description": "Region comes from the Melbourne Subcortex Atlas (MSA)."
     },
     "cerebellum": {
         "Description": "Region comes from the MDTB10 cerebellar atlas."
+    },
+    "hcp_label": {
+        "Description": "The area's name in the HCP-MMP1.0 release (e.g. R_V1_ROI). Not called `cifti_label`: XCP-D maps CIFTI parcel names through a column of that name, and the label tables here use `name`."
     }
 }
